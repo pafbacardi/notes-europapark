@@ -5,31 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Notes des Attractions Europa-Park & Rulantica</title>
     <script type="module">
-        // Importation des modules Firebase nécessaires
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // --- Firebase modules sont temporairement désactivés comme demandé ---
+        // import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        // import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        // import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Variables globales pour Firebase (initialisées plus tard)
-        let app;
-        let db;
-        let auth;
-        let userId; // L'ID de l'utilisateur Firebase
+        // Variables globales (Firebase est désactivé pour le moment)
+        // let app;
+        // let db;
+        // let auth;
+        // let userId; // L'ID de l'utilisateur Firebase (non utilisé pour le moment)
 
         // --- Données des attractions (initialement vide, sera chargée depuis Firebase) ---
         let attractions = [];
         // Stockage temporaire des notes (non persistant dans cette version)
-        const allRatings = {};
+        // Ces notes seront perdues au rechargement de la page.
+        const allRatings = {}; // Structure: { attractionId: { memberName: rating, ... }, ... }
 
         let currentAttraction = null; // Garde l'attraction actuellement affichée
         let sortAscending = false; // Pour le tri par note
+        let selectedRatingValue = 1; // Nouvelle variable pour stocker la note sélectionnée par les boutons
 
         // Membres de la famille avec leurs couleurs
         const familyMembers = [
             { name: 'Papa', color: '#4169E1' },    // RoyalBlue
             { name: 'Maman', color: '#FF8C00' },    // DarkOrange
             { name: 'Ceylian', color: '#DC143C' },  // Crimson
-            { name: 'Cloélie', color: '#32CD32' }   // LimeGreen
+            { name: 'Cloélie', color: '#000000' }   // Noir
         ];
 
         // --- Récupération des éléments du DOM ---
@@ -44,7 +46,7 @@
         const detailAttractionCategory = document.getElementById('detail-attraction-category');
         const detailAttractionUrl = document.getElementById('detail-attraction-url');
         const detailAttractionImage = document.getElementById('detail-attraction-image');
-        const ratingSelect = document.getElementById('ratingSelect');
+        const ratingButtonsContainer = document.getElementById('ratingButtonsContainer');
         const familyRaterButtonsDiv = document.getElementById('familyRaterButtons');
         const familyRatingsList = document.getElementById('familyRatingsList');
         const averageRatingSpan = document.getElementById('averageRating');
@@ -88,16 +90,18 @@
         const passwordCancelButton = document.getElementById('passwordCancelButton');
         const CORRECT_PASSWORD = 'EP2025';
 
-        // Loading indicator
+        // Loading indicator (display none by default in CSS now)
         const loadingOverlay = document.getElementById('loadingOverlay');
 
         // --- Fonctions d'affichage des pages ---
         function showLoading() {
-            loadingOverlay.style.display = 'flex';
+            // Cette fonction ne fait rien pour le moment car le chargement est désactivé
+            // loadingOverlay.style.display = 'flex';
         }
 
         function hideLoading() {
-            loadingOverlay.style.display = 'none';
+            // Cette fonction ne fait rien pour le moment car le chargement est désactivé
+            // loadingOverlay.style.display = 'none';
         }
 
         function hideAllPages() {
@@ -147,8 +151,9 @@
                 detailAttractionImage.style.display = 'block';
             }
 
-            ratingSelect.value = '1';
-            updateRatingsDisplay();
+            selectedRatingValue = 1; // Réinitialise la note sélectionnée
+            renderRatingButtons(); // Affiche les boutons de notation
+            updateRatingsDisplay(); // Met à jour l'affichage des notes existantes
             attractionDetailPage.style.display = 'block';
         }
 
@@ -174,7 +179,7 @@
             renderManagedAttractionsList();
         }
 
-        // --- Fonctions de gestion des attractions (Firebase) ---
+        // --- Fonctions de gestion des attractions (en mémoire, non persistantes) ---
 
         function openAttractionForm(attractionId = null) {
             let attraction = null;
@@ -218,7 +223,7 @@
             }
         }
 
-        async function saveAttraction() {
+        function saveAttraction() {
             const id = attractionIdToEdit.value;
             const name = attractionNameInput.value.trim();
             const park = attractionParkSelect.value;
@@ -232,45 +237,55 @@
                 return;
             }
 
-            showLoading();
+            showLoading(); // Appelle showLoading, mais il ne fait rien maintenant
             try {
                 const attractionData = { name, park, zone, category, url, imageUrl };
-                const collectionRef = collection(db, `artifacts/${__app_id}/public/data/attractions`);
 
                 if (id) {
-                    await setDoc(doc(collectionRef, id), attractionData);
-                    showCustomAlert(`Attraction "${name}" mise à jour !`);
+                    // Mise à jour d'une attraction existante en mémoire
+                    const index = attractions.findIndex(att => att.id === id);
+                    if (index !== -1) {
+                        attractions[index] = { ...attractions[index], ...attractionData };
+                        showCustomAlert(`Attraction "${name}" mise à jour !`);
+                    } else {
+                        showCustomAlert("Erreur: Attraction à mettre à jour non trouvée.");
+                    }
                 } else {
-                    const docRef = await addDoc(collectionRef, attractionData);
-                    await setDoc(docRef, { id: docRef.id, ...attractionData });
+                    // Ajout d'une nouvelle attraction en mémoire
+                    const newId = Date.now().toString(); // Génère un ID simple basé sur le timestamp
+                    attractions.push({ id: newId, ...attractionData });
                     showCustomAlert(`Attraction "${name}" ajoutée !`);
                 }
+                renderAttractionList();
+                renderManagedAttractionsList();
+                populateZoneFilter();
             } catch (error) {
                 console.error("Erreur lors de la sauvegarde de l'attraction :", error);
                 showCustomAlert("Erreur lors de la sauvegarde de l'attraction. Veuillez réessayer.");
             } finally {
-                hideLoading();
-                openAttractionForm();
+                hideLoading(); // Appelle hideLoading, mais il ne fait rien maintenant
+                openAttractionForm(); // Réinitialise le formulaire
             }
         }
 
-        async function deleteAttraction(attractionId) {
+        function deleteAttraction(attractionId) {
             const attractionToDelete = attractions.find(att => att.id === attractionId);
             if (!attractionToDelete) return;
 
-            showCustomConfirm(`Voulez-vous vraiment supprimer l'attraction "${attractionToDelete.name}" ?`, async (confirmed) => {
+            showCustomConfirm(`Voulez-vous vraiment supprimer l'attraction "${attractionToDelete.name}" ?`, (confirmed) => {
                 if (confirmed) {
-                    showLoading();
+                    showLoading(); // Appelle showLoading, mais il ne fait rien maintenant
                     try {
-                        const docRef = doc(db, `artifacts/${__app_id}/public/data/attractions`, attractionId);
-                        await deleteDoc(docRef);
-                        delete allRatings[attractionId];
+                        attractions = attractions.filter(att => att.id !== attractionId); // Supprime de la liste en mémoire
+                        delete allRatings[attractionId]; // Supprime les notes associées en mémoire
                         showCustomAlert(`Attraction "${attractionToDelete.name}" supprimée !`);
+                        renderAttractionList();
+                        renderManagedAttractionsList();
                     } catch (error) {
                         console.error("Erreur lors de la suppression de l'attraction :", error);
                         showCustomAlert("Erreur lors de la suppression de l'attraction. Veuillez réessayer.");
                     } finally {
-                        hideLoading();
+                        hideLoading(); // Appelle hideLoading, mais il ne fait rien maintenant
                     }
                 } else {
                     showCustomAlert(`Suppression de "${attractionToDelete.name}" annulée.`);
@@ -322,10 +337,11 @@
                 filteredAndSortedAttractions.sort((a, b) => {
                     const avgA = calculateAverageRatingForAttraction(a.id);
                     const avgB = calculateAverageRatingForAttraction(b.id);
+                    // Gère les cas où les moyennes sont 'N/A' pour le tri
                     if (avgA === 'N/A' && avgB === 'N/A') return 0;
-                    if (avgA === 'N/A') return 1;
-                    if (avgB === 'N/A') return -1;
-                    return avgB - avgA;
+                    if (avgA === 'N/A') return 1; // Les non notées vont à la fin
+                    if (avgB === 'N/A') return -1; // Les non notées vont à la fin
+                    return avgB - avgA; // Trie du plus grand au plus petit
                 });
             }
 
@@ -379,6 +395,27 @@
             });
         }
 
+        // Nouvelle fonction pour générer les boutons de notation (1 à 10)
+        function renderRatingButtons() {
+            ratingButtonsContainer.innerHTML = '';
+            for (let i = 1; i <= 10; i++) {
+                const button = document.createElement('button');
+                button.textContent = i;
+                button.className = `rating-button rating-${i}`; // Ajoute une classe pour la couleur
+                if (i === selectedRatingValue) {
+                    button.classList.add('selected'); // Marque le bouton sélectionné
+                }
+                button.onclick = () => {
+                    selectedRatingValue = i;
+                    // Supprime la classe 'selected' de tous les boutons
+                    document.querySelectorAll('.rating-button').forEach(btn => btn.classList.remove('selected'));
+                    // Ajoute la classe 'selected' au bouton cliqué
+                    button.classList.add('selected');
+                };
+                ratingButtonsContainer.appendChild(button);
+            }
+        }
+
         function renderFamilyRaterButtons() {
             familyRaterButtonsDiv.innerHTML = '';
             familyMembers.forEach(member => {
@@ -395,12 +432,8 @@
                 showCustomAlert("Veuillez sélectionner une attraction avant de donner une note.");
                 return;
             }
-            const ratingValue = ratingSelect.value;
-            const rating = parseInt(ratingValue, 10);
-            if (isNaN(rating) || rating < 1 || rating > 10) {
-                showCustomAlert("Veuillez sélectionner une note valide (entre 1 et 10).");
-                return;
-            }
+            const rating = selectedRatingValue; // Utilise la note sélectionnée par les boutons
+
             const attractionId = currentAttraction.id;
             if (!allRatings[attractionId]) {
                 allRatings[attractionId] = {};
@@ -413,20 +446,22 @@
         }
 
         function generateTestRatings() {
+            // Efface toutes les notes existantes
             for (const attractionId in allRatings) {
                 delete allRatings[attractionId];
             }
             attractions.forEach(attraction => {
-                if (Math.random() < 0.7) {
+                if (Math.random() < 0.7) { // 70% de chances d'avoir des notes
                     allRatings[attraction.id] = {};
                     familyMembers.forEach(member => {
-                        if (Math.random() < 0.6) {
+                        if (Math.random() < 0.6) { // 60% de chances que chaque membre note
                             const randomRating = Math.floor(Math.random() * 10) + 1;
                             allRatings[attraction.id][member.name] = randomRating;
                         }
                     });
                 }
             });
+            // Réinitialise les filtres et le tri après la génération des notes
             zoneFilterSelect.value = 'all';
             filterUnratedOnly = false;
             showUnratedButton.textContent = 'Voir les non notées';
@@ -450,7 +485,7 @@
                 const li = document.createElement('li');
                 const score = currentAttractionRatings[member.name] !== undefined ? currentAttractionRatings[member.name] : 'N/A';
                 li.innerHTML = `
-                    ${member.name} : 
+                    ${member.name} :
                     <span class="score-value">
                         <span class="score-${member.name.toLowerCase()}">${score}</span>
                         ${score !== 'N/A' ? `<span class="delete-rating-icon" onclick="deleteRating('${attractionId}', '${member.name}')">✖️</span>` : ''}
@@ -505,7 +540,7 @@
             ratingsData.sort((a, b) => {
                 const ratingA = a.rating === 'N/A' ? -1 : a.rating;
                 const ratingB = b.rating === 'N/A' ? -1 : b.rating;
-                return ratingB - ratingA;
+                return ratingB - ratingA; // Trie du plus grand au plus petit
             });
             let hasRatings = false;
             ratingsData.forEach(item => {
@@ -648,7 +683,7 @@
 
         function triggerConfetti() {
             const confettiContainer = document.getElementById('confetti-container');
-            const colors = ['#FFD700', '#FF69B4', '#ADD8E6', '#98FB98', '#FF4500'];
+            const colors = ['#FFD700', '#FF69B4', '#ADD8E6', '#FF4500']; // Removed green color
             const numConfetti = 50;
             for (let i = 0; i < numConfetti; i++) {
                 const confetti = document.createElement('div');
@@ -711,79 +746,44 @@
             };
         }
 
-        async function initializeFirebaseAndLoadData() {
-            showLoading();
-            try {
-                const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-                app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-                if (typeof __initial_auth_token !== 'undefined') {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-                userId = auth.currentUser?.uid || crypto.randomUUID();
-                const attractionsCollectionRef = collection(db, `artifacts/${__app_id}/public/data/attractions`);
-                onSnapshot(attractionsCollectionRef, (snapshot) => {
-                    attractions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    console.log("Attractions chargées/mises à jour depuis Firestore:", attractions);
-                    renderAttractionList();
-                    renderManagedAttractionsList();
-                    populateZoneFilter();
-                    hideLoading();
-                }, (error) => {
-                    console.error("Erreur lors du chargement des attractions depuis Firestore :", error);
-                    showCustomAlert("Erreur lors du chargement des attractions. Veuillez rafraîchir la page.");
-                    hideLoading();
-                });
-                const initialAttractionsData = [
-                    { id: 'silver-star', name: 'Silver Star', park: 'Europa-Park', zone: 'France', category: 'Action', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/silver-star', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Silver%20Star%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG%20%281%29.jpg?itok=3K1k7P-X' },
-                    { id: 'blue-fire', name: 'blue fire Megacoaster', park: 'Europa-Park', zone: 'Islande', category: 'Action', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/blue-fire-megacoaster-powered-by-gazprom', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/blue%20fire%20Megacoaster%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG%20%281%29.jpg?itok=3K1k7P-X' },
-                    { id: 'wodan', name: 'WODAN - Timburcoaster', park: 'Europa-Park', zone: 'Islande', category: 'Action', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/wodan-timburcoaster', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/WODAN%20Timburcoaster%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                    { id: 'eurosat', name: 'Eurosat - CanCan Coaster', park: 'Europa-Park', zone: 'France', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/eurosat-cancan-coaster', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Eurosat%20CanCan%20Coaster%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                    { id: 'matterhorn-blitz', name: 'Matterhorn Blitz', park: 'Europa-Park', zone: 'Suisse', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/matterhorn-blitz', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Matterhorn%20Blitz%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                    { id: 'pirates-batavia', name: 'Pirates de Batavia', park: 'Europa-Park', zone: 'Pays-Bas', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/pirates-de-batavia', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Piraten%20in%20Batavia%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                    { id: 'voletarium', name: 'Voletarium', park: 'Europa-Park', zone: 'Allemagne', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/voletarium', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Voletarium%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                    { id: 'minimoys-arthur', name: 'ARTHUR', park: 'Europa-Park', zone: 'Royaume des Minimoys', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/arthur', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/ARTHUR%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                    { id: 'alpenexpress', name: 'Alpine Coaster Enzian', park: 'Europa-Park', zone: 'Autriche', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/alpenexpress-enzian', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Alpenexpress%20Enzian%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                    { id: 'tirol-log-flume', name: 'Bûches du Tyrol', park: 'Europa-Park', zone: 'Autriche', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/b%C3%BBches-du-tyrol', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Tiroler%20Wildwasserbahn%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                    { id: 'sleigh-ride-snowflake', name: 'Traîneau express "Flocon de Neige"', park: 'Europa-Park', zone: 'Russie', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/traineau-express-flocon-de-neige', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Schlittenfahrt%20Schneefl%C3%B6ckchen%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                    { id: 'ba-a-a-express', name: 'Ba-a-a Express', park: 'Europa-Park', zone: 'Irlande', category: 'Enfant', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/ba-a-a-express', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Ba-a-a%20Express%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                    { id: 'koffiekopjes', name: 'Koffiekopjes', park: 'Europa-Park', zone: 'Pays-Bas', category: 'Enfant', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/koffiekopjes', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Koffiekopjes%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                    { id: 'lilliputiens', name: 'Lilliputiens – l’Aire de Jeux Aquatique hansgrohe', park: 'Europa-Park', zone: 'Islande', category: 'Enfant', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/lilliputiens-%E2%80%93-laire-de-jeux-aquatique-hansgrohe', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Lilliputiens%20%E2%80%93%20l%E2%80%99Aire%20de%20Jeux%20Aquatique%20hansgrohe%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                    { id: 'vikinglop', name: 'Vikingløp', park: 'Rulantica', zone: 'Nordiskturn', category: 'Action', url: 'https://www.europapark.de/fr/rulantica/attractions/vikinglop', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Vikingl%C3%B8p%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                    { id: 'svalgur-rytt', name: 'Svalgur Rytt', park: 'Rulantica', zone: 'Rangnakor', category: 'Action', url: 'https://www.europapark.de/fr/rulantica/attractions/svalgur-rytt', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Svalgur%20Rytt%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                    { id: 'vildstrom', name: 'Vildstrøm', park: 'Rulantica', zone: 'Svalgurok', category: 'Famille', url: 'https://www.europapark.de/fr/rulantica/attractions/vildstr%C3%B8m', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Vildstr%C3%B8m%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                    { id: 'snorri-touren', name: 'Snorri Touren', park: 'Europa-Park', zone: 'Scandinavie', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/snorri-touren', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Snorri%20Touren%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                    { id: 'surf-fjord', name: 'Surf Fjørd', park: 'Rulantica', zone: 'Lumåfals', category: 'Famille', url: 'https://www.europapark.de/fr/rulantica/attractions/surf-fj%C3%B8rd', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Surf%20Fj%C3%B8rd%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                    { id: 'snorris-strand', name: 'Snorri Strand', park: 'Rulantica', zone: 'Trølldal', category: 'Enfant', url: 'https://www.europapark.de/fr/rulantica/attractions/snorri-strand', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Snorri%20Strand%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                    { id: 'tommelplums', name: 'Tommelplums', park: 'Rulantica', zone: 'Trølldal', category: 'Enfant', url: 'https://www.europapark.de/fr/rulantica/attractions/tommelplums', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Tommelplums%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' }
-                ];
-                const initialSnapshot = await new Promise(resolve => {
-                    const unsubscribe = onSnapshot(attractionsCollectionRef, (snap) => {
-                        unsubscribe();
-                        resolve(snap);
-                    });
-                });
-                if (initialSnapshot.empty) {
-                    console.log("Collection 'attractions' vide. Ajout des données initiales...");
-                    for (const att of initialAttractionsData) {
-                        const docRef = doc(attractionsCollectionRef);
-                        await setDoc(docRef, { id: docRef.id, ...att });
-                    }
-                    showCustomAlert("Données initiales des attractions ajoutées à Firebase !");
-                }
-            } catch (error) {
-                console.error("Erreur d'initialisation Firebase ou de chargement des données :", error);
-                showCustomAlert("Erreur critique: Impossible de charger l'application. Vérifiez la console pour plus de détails.");
-                hideLoading();
-            }
+        // Fonction d'initialisation des données (sans Firebase pour le moment)
+        async function initializeData() {
+            // Données initiales des attractions
+            const initialAttractionsData = [
+                { id: 'silver-star', name: 'Silver Star', park: 'Europa-Park', zone: 'France', category: 'Action', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/silver-star', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Silver%20Star%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG%20%281%29.jpg?itok=3K1k7P-X' },
+                { id: 'blue-fire', name: 'blue fire Megacoaster', park: 'Europa-Park', zone: 'Islande', category: 'Action', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/blue-fire-megacoaster-powered-by-gazprom', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/blue%20fire%20Megacoaster%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG%20%281%29.jpg?itok=3K1k7P-X' },
+                { id: 'wodan', name: 'WODAN - Timburcoaster', park: 'Europa-Park', zone: 'Islande', category: 'Action', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/wodan-timburcoaster', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/WODAN%20Timburcoaster%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                { id: 'eurosat', name: 'Eurosat - CanCan Coaster', park: 'Europa-Park', zone: 'France', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/eurosat-cancan-coaster', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Eurosat%20CanCan%20Coaster%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                { id: 'matterhorn-blitz', name: 'Matterhorn Blitz', park: 'Europa-Park', zone: 'Suisse', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/matterhorn-blitz', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Matterhorn%20Blitz%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                { id: 'pirates-batavia', name: 'Pirates de Batavia', park: 'Europa-Park', zone: 'Pays-Bas', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/pirates-de-batavia', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Piraten%20in%20Batavia%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                { id: 'voletarium', name: 'Voletarium', park: 'Europa-Park', zone: 'Allemagne', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/voletarium', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Voletarium%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                { id: 'minimoys-arthur', name: 'ARTHUR', park: 'Europa-Park', zone: 'Royaume des Minimoys', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/arthur', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/ARTHUR%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                { id: 'alpenexpress', name: 'Alpine Coaster Enzian', park: 'Europa-Park', zone: 'Autriche', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/alpenexpress-enzian', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Alpenexpress%20Enzian%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                { id: 'tirol-log-flume', name: 'Bûches du Tyrol', park: 'Europa-Park', zone: 'Autriche', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/b%C3%BBches-du-tyrol', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Tiroler%20Wildwasserbahn%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                { id: 'sleigh-ride-snowflake', name: 'Traîneau express "Flocon de Neige"', park: 'Europa-Park', zone: 'Russie', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/traineau-express-flocon-de-neige', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Schlittenfahrt%20Schneefl%C3%B6ckchen%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                { id: 'ba-a-a-express', name: 'Ba-a-a Express', park: 'Europa-Park', zone: 'Irlande', category: 'Enfant', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/ba-a-a-express', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Ba-a-a%20Express%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                { id: 'koffiekopjes', name: 'Koffiekopjes', park: 'Europa-Park', zone: 'Pays-Bas', category: 'Enfant', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/koffiekopjes', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Koffiekopjes%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                { id: 'lilliputiens', name: 'Lilliputiens – l’Aire de Jeux Aquatique hansgrohe', park: 'Europa-Park', zone: 'Islande', category: 'Enfant', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/lilliputiens-%E2%80%93-laire-de-jeux-aquatique-hansgrohe', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Lilliputiens%20%E2%80%93%20l%E2%80%99Aire%20de%20Jeux%20Aquatique%20hansgrohe%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                { id: 'vikinglop', name: 'Vikingløp', park: 'Rulantica', zone: 'Nordiskturn', category: 'Action', url: 'https://www.europapark.de/fr/rulantica/attractions/vikinglop', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Vikingl%C3%B8p%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                { id: 'svalgur-rytt', name: 'Svalgur Rytt', park: 'Rulantica', zone: 'Rangnakor', category: 'Action', url: 'https://www.europapark.de/fr/rulantica/attractions/svalgur-rytt', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Svalgur%20Rytt%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                { id: 'vildstrom', name: 'Vildstrøm', park: 'Rulantica', zone: 'Svalgurok', category: 'Famille', url: 'https://www.europapark.de/fr/rulantica/attractions/vildstr%C3%B8m', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Vildstr%C3%B8m%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                { id: 'snorri-touren', name: 'Snorri Touren', park: 'Europa-Park', zone: 'Scandinavie', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/snorri-touren', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Snorri%20Touren%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                { id: 'surf-fjord', name: 'Surf Fjørd', park: 'Rulantica', zone: 'Lumåfals', category: 'Famille', url: 'https://www.europapark.de/fr/rulantica/attractions/surf-fj%C3%B8rd', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Surf%20Fj%C3%B8rd%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                { id: 'snorris-strand', name: 'Snorri Strand', park: 'Rulantica', zone: 'Trølldal', category: 'Enfant', url: 'https://www.europapark.de/fr/rulantica/attractions/snorri-strand', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Snorri%20Strand%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                { id: 'tommelplums', name: 'Tommelplums', park: 'Rulantica', zone: 'Trølldal', category: 'Enfant', url: 'https://www.europapark.de/fr/rulantica/attractions/tommelplums', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Tommelplums%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' }
+            ];
+
+            attractions = initialAttractionsData;
+            console.log("Attractions chargées en mémoire (sans Firebase):", attractions);
+            renderAttractionList();
+            renderManagedAttractionsList();
+            populateZoneFilter();
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            initializeFirebaseAndLoadData();
+            initializeData(); // Appel de la fonction d'initialisation sans chargement
             renderFamilyRaterButtons();
+            renderRatingButtons(); // Appelle la fonction pour générer les boutons de notation au chargement
             zoneFilterSelect.addEventListener('change', () => {
                 filterUnratedOnly = false;
                 showUnratedButton.textContent = 'Voir les non notées';
@@ -1149,31 +1149,64 @@
             font-size: 1.2em;
             margin-bottom: 0;
         }
-        .detail-page .rating-section select {
-            padding: 10px 15px;
-            border-radius: 10px;
-            border: 2px solid #008080;
-            background-color: #E0FFFF;
-            font-size: 1em;
-            font-family: 'Comic Sans MS', cursive, sans-serif;
-            color: #333;
-            cursor: pointer;
+        /* Styles pour les nouveaux boutons de notation */
+        .rating-buttons-container {
+            display: flex;
+            flex-wrap: wrap; /* Permet aux boutons de passer à la ligne */
+            justify-content: center;
+            gap: 8px; /* Espacement réduit entre les boutons */
+            margin-top: 15px;
             width: 100%;
-            max-width: 250px;
-            box-sizing: border-box;
+            max-width: 600px; /* Limite la largeur pour éviter l'étirement excessif */
         }
+        .rating-button {
+            width: 40px; /* Taille fixe pour chaque bouton */
+            height: 40px;
+            border-radius: 50%; /* Boutons ronds */
+            border: 2px solid #ccc;
+            font-size: 1.1em;
+            font-weight: bold;
+            color: white;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .rating-button:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        .rating-button.selected {
+            border-color: #4169E1; /* Couleur de bordure pour le bouton sélectionné */
+            transform: scale(1.15);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+        }
+
+        /* Couleurs pour l'échelle de notes (du rouge au vert) */
+        .rating-1 { background-color: #FF4500; } /* Rouge vif */
+        .rating-2 { background-color: #FF6347; } /* Tomato */
+        .rating-3 { background-color: #FF7F50; } /* Coral */
+        .rating-4 { background-color: #FFA07A; } /* LightSalmon */
+        .rating-5 { background-color: #FFD700; } /* Gold */
+        .rating-6 { background-color: #ADFF2F; } /* GreenYellow */
+        .rating-7 { background-color: #7CFC00; } /* LawnGreen */
+        .rating-8 { background-color: #32CD32; } /* LimeGreen */
+        .rating-9 { background-color: #008000; } /* Green */
+        .rating-10 { background-color: #006400; } /* DarkGreen */
+
 
         /* Boutons des membres de la famille pour la notation */
         .family-rater-buttons {
             display: flex;
-            flex-wrap: nowrap; /* MODIFICATION : force les boutons à rester sur une seule ligne */
+            flex-wrap: nowrap; /* Force les boutons à rester sur une seule ligne */
             justify-content: center;
             gap: 10px;
             margin-top: 15px;
             width: 100%;
         }
         .family-rater-buttons button {
-            color: white;
             border: none;
             padding: 12px 15px;
             border-radius: 10px;
@@ -1186,14 +1219,15 @@
             min-width: 60px; /* Empêche les boutons de devenir trop petits */
             box-sizing: border-box;
         }
-        .family-rater-buttons button.papa { background-color: #4169E1; }
+        .family-rater-buttons button.papa { background-color: #4169E1; color: white; }
         .family-rater-buttons button.papa:hover { background-color: #3558B6; }
-        .family-rater-buttons button.maman { background-color: #FF8C00; }
+        .family-rater-buttons button.maman { background-color: #FF8C00; color: white; }
         .family-rater-buttons button.maman:hover { background-color: #CC7000; }
-        .family-rater-buttons button.ceylian { background-color: #DC143C; }
+        .family-rater-buttons button.ceylian { background-color: #DC143C; color: white; }
         .family-rater-buttons button.ceylian:hover { background-color: #B01030; }
-        .family-rater-buttons button.cloelie { background-color: #32CD32; }
-        .family-rater-buttons button.cloelie:hover { background-color: #28A728; }
+        /* MODIFICATION ICI: Couleur du bouton Cloélie */
+        .family-rater-buttons button.cloelie { background-color: #000000; color: white; } /* Noir avec texte blanc */
+        .family-rater-buttons button.cloelie:hover { background-color: #333333; } /* Un peu plus clair au survol */
 
         .detail-page .scores-display {
             margin-top: 25px;
@@ -1230,7 +1264,7 @@
         .detail-page .scores-display ul li .score-papa { color: #4169E1; }
         .detail-page .scores-display ul li .score-maman { color: #FF8C00; }
         .detail-page .scores-display ul li .score-ceylian { color: #DC143C; }
-        .detail-page .scores-display ul li .score-cloelie { color: #32CD32; }
+        .detail-page .scores-display ul li .score-cloelie { color: #000000; } /* Assure la couleur du texte de la note aussi */
         .delete-rating-icon {
             cursor: pointer;
             color: #DC143C;
@@ -1316,7 +1350,7 @@
         .stats-page .stats-list li .score-papa { color: #4169E1; }
         .stats-page .stats-list li .score-maman { color: #FF8C00; }
         .stats-page .stats-list li .score-ceylian { color: #DC143C; }
-        .stats-page .stats-list li .score-cloelie { color: #32CD32; }
+        .stats-page .stats-list li .score-cloelie { color: #000000; } /* Assure la couleur du texte de la note aussi */
         .stats-page .average-display {
             font-size: 1.1em;
             color: #8B0000;
@@ -1560,14 +1594,14 @@
             background-color: #4CAF50;
             color: white;
         }
-        .password-modal-content .password-buttons button.password-ok:hover {
+        .password-modal-content .password-ok:hover {
             background-color: #45a049;
         }
         .password-modal-content .password-buttons button.password-cancel {
             background-color: #FFD700;
             color: #333;
         }
-        .password-modal-content .password-buttons button.password-cancel:hover {
+        .password-modal-content .password-cancel:hover {
             background-color: #FFC400;
         }
 
@@ -1613,7 +1647,7 @@
             width: 100%;
             height: 100%;
             background-color: rgba(255, 255, 255, 0.8);
-            display: flex;
+            display: none; /* Défini à none par défaut */
             justify-content: center;
             align-items: center;
             z-index: 3000;
@@ -1661,10 +1695,11 @@
             .detail-page .rating-section {
                 flex-direction: row;
                 justify-content: center;
+                flex-wrap: wrap; /* Permet aux éléments de passer à la ligne si l'écran est trop petit */
             }
-            .detail-page .rating-section select {
+            .rating-buttons-container {
                 width: auto;
-                max-width: none;
+                max-width: 600px;
             }
             .family-rater-buttons {
                 width: auto;
@@ -1763,18 +1798,9 @@
             </div>
             <div class="rating-section">
                 <h3>Donnez votre note :</h3>
-                <select id="ratingSelect">
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="4">4</option>
-                    <option value="5">5</option>
-                    <option value="6">6</option>
-                    <option value="7">7</option>
-                    <option value="8">8</option>
-                    <option value="9">9</option>
-                    <option value="10">10</option>
-                </select>
+                <div class="rating-buttons-container" id="ratingButtonsContainer">
+                    <!-- Les boutons de notation seront générés ici par JavaScript -->
+                </div>
                 <div class="family-rater-buttons" id="familyRaterButtons"></div>
             </div>
             <div class="scores-display">
