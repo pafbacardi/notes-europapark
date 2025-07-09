@@ -752,6 +752,7 @@
         function renderAverageByPerson() {
             averageByPersonList.innerHTML = '';
             const personScores = {};
+            const totalAttractions = attractions.length; // Nombre total d'attractions
             familyMembers.forEach(member => {
                 personScores[member.name] = { total: 0, count: 0 };
             });
@@ -768,7 +769,10 @@
             familyMembers.forEach(member => {
                 const data = personScores[member.name];
                 const average = data.count > 0 ? parseFloat((data.total / data.count).toFixed(1)) : 'N/A';
-                averagePersonData.push({ name: member.name, average: average, colorClass: `score-${member.name.toLowerCase()}` });
+                // Ajout du nombre de notes attribuées et du total possible
+                const notesInfo = data.count > 0 ? ` (${data.count}/${totalAttractions} notes)` : '';
+
+                averagePersonData.push({ name: member.name, average: average, notesInfo: notesInfo, colorClass: `score-${member.name.toLowerCase()}` });
             });
             averagePersonData.sort((a, b) => {
                 const avgA = a.average === 'N/A' ? -1 : a.average;
@@ -786,6 +790,14 @@
                 scoreSpan.textContent = item.average !== 'N/A' ? `${item.average}/10` : 'N/A';
                 scoreSpan.className = item.colorClass;
                 li.appendChild(scoreSpan);
+                
+                const notesInfoSpan = document.createElement('span');
+                notesInfoSpan.textContent = item.notesInfo;
+                notesInfoSpan.style.fontSize = '0.8em'; // Rendre plus discret
+                notesInfoSpan.style.color = '#666'; // Couleur plus discrète
+                notesInfoSpan.style.marginLeft = '5px';
+                li.appendChild(notesInfoSpan);
+
                 averageByPersonList.appendChild(li);
             });
         }
@@ -794,16 +806,21 @@
             averageByZoneList.innerHTML = '';
             const zoneScores = {};
             const zoneParkMap = new Map(); // Pour stocker le parc associé à chaque zone
+            const zoneAttractionCount = {}; // Pour stocker le nombre d'attractions par zone
+
             attractions.forEach(attraction => {
                 const zone = attraction.zone;
                 const park = attraction.park;
                 if (!zoneScores[zone]) {
                     zoneScores[zone] = { total: 0, count: 0 };
+                    zoneAttractionCount[zone] = 0;
                 }
                 // Stocke le parc pour cette zone (en supposant qu'une zone appartient à un seul parc)
                 if (!zoneParkMap.has(zone)) {
                     zoneParkMap.set(zone, park);
                 }
+                zoneAttractionCount[zone]++; // Incrémente le compteur d'attractions pour cette zone
+
                 const attractionRatings = allRatings[attraction.id] || {};
                 for (const memberName in attractionRatings) {
                     zoneScores[zone].total += attractionRatings[memberName];
@@ -821,7 +838,12 @@
                 } else if (park === 'Rulantica') {
                     emoji = '💧 ';
                 }
-                averagesData.push({ name: `${emoji}${zone}`, average: average });
+                
+                // Calcul du nombre total de notes possibles pour la zone
+                const totalPossibleNotes = zoneAttractionCount[zone] * familyMembers.length;
+                const notesInfo = data.count > 0 ? ` (${data.count}/${totalPossibleNotes} notes)` : '';
+
+                averagesData.push({ name: `${emoji}${zone}`, average: average, notesInfo: notesInfo });
             }
             averagesData.sort((a, b) => {
                 const avgA = a.average === 'N/A' ? -1 : a.average;
@@ -839,6 +861,14 @@
                 scoreSpan.textContent = item.average !== 'N/A' ? `${item.average}/10` : 'N/A';
                 scoreSpan.style.color = item.average !== 'N/A' ? '#008080' : '#888';
                 li.appendChild(scoreSpan);
+
+                const notesInfoSpan = document.createElement('span');
+                notesInfoSpan.textContent = item.notesInfo;
+                notesInfoSpan.style.fontSize = '0.8em'; // Rendre plus discret
+                notesInfoSpan.style.color = '#666'; // Couleur plus discrète
+                notesInfoSpan.style.marginLeft = '5px';
+                li.appendChild(notesInfoSpan);
+
                 averageByZoneList.appendChild(li);
             });
         }
@@ -846,11 +876,16 @@
         function renderAverageByCategory() {
             averageByCategoryList.innerHTML = '';
             const categoryScores = {};
+            const categoryAttractionCount = {}; // Pour stocker le nombre d'attractions par catégorie
+
             attractions.forEach(attraction => {
                 const category = attraction.category;
                 if (!categoryScores[category]) {
                     categoryScores[category] = { total: 0, count: 0 };
+                    categoryAttractionCount[category] = 0;
                 }
+                categoryAttractionCount[category]++; // Incrémente le compteur d'attractions pour cette catégorie
+
                 const attractionRatings = allRatings[attraction.id] || {};
                 for (const memberName in attractionRatings) {
                     categoryScores[category].total += attractionRatings[memberName];
@@ -861,7 +896,12 @@
             for (const category in categoryScores) {
                 const data = categoryScores[category];
                 const average = data.count > 0 ? parseFloat((data.total / data.count).toFixed(1)) : 'N/A';
-                averagesData.push({ name: category, average: average });
+                
+                // Calcul du nombre total de notes possibles pour la catégorie
+                const totalPossibleNotes = categoryAttractionCount[category] * familyMembers.length;
+                const notesInfo = data.count > 0 ? ` (${data.count}/${totalPossibleNotes} notes)` : '';
+
+                averagesData.push({ name: category, average: average, notesInfo: notesInfo });
             }
             averagesData.sort((a, b) => {
                 const avgA = a.average === 'N/A' ? -1 : a.average;
@@ -879,6 +919,14 @@
                 scoreSpan.textContent = item.average !== 'N/A' ? `${item.average}/10` : 'N/A';
                 scoreSpan.style.color = item.average !== 'N/A' ? '#008080' : '#888';
                 li.appendChild(scoreSpan);
+
+                const notesInfoSpan = document.createElement('span');
+                notesInfoSpan.textContent = item.notesInfo;
+                notesInfoSpan.style.fontSize = '0.8em'; // Rendre plus discret
+                notesInfoSpan.style.color = '#666'; // Couleur plus discrète
+                notesInfoSpan.style.marginLeft = '5px';
+                li.appendChild(notesInfoSpan);
+
                 averageByCategoryList.appendChild(li);
             });
         }
