@@ -901,58 +901,7 @@
             };
         }
 
-        // Fonction pour partager les détails de l'attraction et les notes
-        function shareAttraction() {
-            if (!currentAttraction) {
-                showCustomAlert("Veuillez sélectionner une attraction pour la partager.");
-                return;
-            }
-
-            const attractionId = currentAttraction.id;
-            const currentAttractionRatings = allRatings[attractionId] || {};
-            const average = calculateAverageRatingForAttraction(attractionId);
-
-            let shareText = `🎉 Notes pour ${currentAttraction.name} à ${currentAttraction.park} !\n`;
-            shareText += `Zone : ${currentAttraction.zone} - Catégorie : ${currentAttraction.category}\n`;
-
-            shareText += `Notes de la famille :\n`;
-            familyMembers.forEach(member => {
-                const score = currentAttractionRatings[member.name] !== undefined ? currentAttractionRatings[member.name] : 'N/A';
-                shareText += `- ${member.name} : ${score}/10\n`;
-            });
-            shareText += `Moyenne de la famille : ${average}/10\n`;
-
-            if (currentAttraction.url) {
-                shareText += `Plus d'infos : ${currentAttraction.url}\n`;
-            }
-
-            if (navigator.share) {
-                // Utilise l'API Web Share si disponible
-                navigator.share({
-                    title: `Notes pour ${currentAttraction.name}`,
-                    text: shareText,
-                    url: currentAttraction.url || window.location.href // Utilise l'URL de l'attraction ou l'URL actuelle
-                }).then(() => {
-                    console.log('Partage réussi !');
-                }).catch((error) => {
-                    console.error('Erreur de partage :', error);
-                    showCustomAlert('Échec du partage. Le texte a été copié dans le presse-papiers.');
-                    navigator.clipboard.writeText(shareText).then(() => {
-                        showCustomAlert('Texte copié dans le presse-papiers !');
-                    }).catch(err => {
-                        console.error('Erreur lors de la copie :', err);
-                    });
-                });
-            } else {
-                // Fallback pour les navigateurs qui ne supportent pas l'API Web Share
-                navigator.clipboard.writeText(shareText).then(() => {
-                    showCustomAlert('Texte copié dans le presse-papiers !');
-                }).catch(err => {
-                    console.error('Erreur lors de la copie :', err);
-                    showCustomAlert('Échec de la copie du texte dans le presse-papiers.');
-                });
-            }
-        }
+        // La fonction shareAttraction a été supprimée.
 
         // Fonction pour peupler les attractions initiales si la collection est vide
         async function populateInitialAttractions() {
@@ -1233,7 +1182,7 @@
         window.openAttractionForm = openAttractionForm;
         window.deleteAttraction = deleteAttraction;
         window.deleteRating = deleteRating;
-        window.shareAttraction = shareAttraction; // Expose la nouvelle fonction de partage
+        // window.shareAttraction = shareAttraction; // La fonction de partage a été supprimée
     </script>
     <style>
         /* Styles généraux pour le corps de la page */
@@ -1691,25 +1640,7 @@
             background-color: #FF7F50;
             transform: scale(1.02);
         }
-        .share-button {
-            background-color: #008080; /* Teal */
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 10px;
-            cursor: pointer;
-            font-size: 1em;
-            font-weight: bold;
-            margin-top: 15px;
-            transition: background-color 0.3s ease, transform 0.2s ease;
-            width: 100%;
-            max-width: 300px;
-            box-sizing: border-box;
-        }
-        .share-button:hover {
-            background-color: #006666;
-            transform: scale(1.02);
-        }
+        /* Le bouton de partage a été supprimé */
 
         /* Page des statistiques */
         .stats-page {
@@ -2303,7 +2234,7 @@
                 <ul id="familyRatingsList"></ul>
                 <p class="average-score">Moyenne : <span id="averageRating">N/A</span></p>
             </div>
-            <button class="share-button" onclick="shareAttraction()">Partager cette attraction</button>
+            <!-- Le bouton de partage a été supprimé ici -->
             <button class="back-button" onclick="showMainListPage()">Retour aux attractions</button>
         </div>
 
