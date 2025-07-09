@@ -7,7 +7,6 @@
     <script type="module">
         // Importation des modules Firebase nécessaires
         // Ajout de 'writeBatch' pour les opérations par lots
-        // CORRECTION: Ajout de 'from' dans l'import initializeApp
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, addDoc, getDocs, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
@@ -453,13 +452,23 @@
         }
 
         function populateZoneFilter() {
-            const zones = new Set(attractions.map(att => att.zone));
+            const zonesMap = new Map(); // Map pour stocker {zone: park} pour éviter les doublons et obtenir le parc
+            attractions.forEach(att => {
+                if (!zonesMap.has(att.zone)) {
+                    zonesMap.set(att.zone, att.park);
+                }
+            });
+
             zoneFilterSelect.innerHTML = '<option value="all">Toutes les zones</option>';
-            const sortedZones = Array.from(zones).sort();
+            const sortedZones = Array.from(zonesMap.keys()).sort(); // Trie les noms de zone
+
             sortedZones.forEach(zone => {
                 const option = document.createElement('option');
                 option.value = zone;
-                option.textContent = zone;
+                const park = zonesMap.get(zone);
+                const parkIndicatorClass = park === 'Europa-Park' ? 'europa-park' : 'rulantica';
+                // Ajoute l'indicateur visuel directement dans le texte de l'option
+                option.innerHTML = `${zone} <span class="park-indicator-inline ${parkIndicatorClass}"></span>`;
                 zoneFilterSelect.appendChild(option);
             });
         }
@@ -1202,15 +1211,14 @@
             background: linear-gradient(135deg, #FFD700, #FF69B4);
             color: #333;
             margin: 0;
-            /* Ajuste le padding-bottom pour laisser de la place au footer fixe */
-            padding: 15px 15px 80px 15px; /* 80px pour la hauteur du footer */
+            padding: 15px; /* Réduit le padding global car le footer n'est plus fixe */
             text-align: center;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             justify-content: flex-start; /* Aligne le contenu en haut */
             align-items: center;
-            position: relative; /* Nécessaire pour le footer fixe */
+            position: relative;
         }
 
         /* Conteneur principal de l'application */
@@ -1248,6 +1256,45 @@
         /* En-tête de la page principale */
         .header {
             margin-bottom: 25px;
+        }
+
+        /* Conteneur des boutons d'action en haut */
+        .action-buttons-top {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .action-buttons-top button {
+            background-color: #4682B4;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: bold;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            flex-grow: 1;
+            max-width: 180px;
+            box-sizing: border-box;
+        }
+        .action-buttons-top button:hover {
+            background-color: #36648B;
+            transform: scale(1.02);
+        }
+        .action-buttons-top button.generate-button {
+            background-color: #8A2BE2;
+        }
+        .action-buttons-top button.generate-button:hover {
+            background-color: #6A1BA0;
+        }
+        .action-buttons-top button.manage-button {
+            background-color: #20B2AA;
+        }
+        .action-buttons-top button.manage-button:hover {
+            background-color: #1A8B83;
         }
 
         /* Conteneur des filtres et de la recherche */
@@ -1366,6 +1413,23 @@
         .park-indicator.rulantica {
             background-color: #40E0D0;
         }
+        /* Style pour l'indicateur dans le select de filtre */
+        .park-indicator-inline {
+            display: inline-block;
+            width: 10px; /* Plus petit pour l'affichage inline */
+            height: 10px; /* Plus petit pour l'affichage inline */
+            border-radius: 50%;
+            margin-left: 5px;
+            vertical-align: middle;
+            border: 1px solid rgba(0,0,0,0.2); /* Ajoute une petite bordure pour la visibilité */
+        }
+        .park-indicator-inline.europa-park {
+            background-color: #00008B;
+        }
+        .park-indicator-inline.rulantica {
+            background-color: #40E0D0;
+        }
+
         .attraction-card button.rate-attraction-button {
             background-color: #FF4500;
             color: white;
@@ -2052,65 +2116,10 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Fixed Footer for action buttons */
-        .fixed-footer {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background-color: rgba(255, 255, 255, 0.95);
-            box-shadow: 0 -5px 15px rgba(0,0,0,0.1);
-            padding: 8px 10px; /* Réduit le padding */
-            box-sizing: border-box;
-            z-index: 100; /* Assure qu'il est au-dessus du contenu principal */
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-wrap: wrap; /* Permet aux boutons de passer à la ligne sur petits écrans */
-            gap: 8px; /* Réduit l'espace entre les boutons */
-        }
-        .fixed-footer button {
-            background-color: #4682B4;
-            color: white;
-            border: none;
-            padding: 10px 15px; /* Réduit le padding des boutons */
-            border-radius: 10px;
-            cursor: pointer;
-            font-size: 0.8em; /* Réduit la taille de police */
-            font-weight: bold;
-            transition: background-color 0.3s ease, transform 0.2s ease;
-            flex-grow: 1; /* Permet aux boutons de s'étirer */
-            max-width: 150px; /* Limite la largeur sur écrans larges */
-            box-sizing: border-box;
-        }
-        .fixed-footer button:hover {
-            background-color: #36648B;
-            transform: scale(1.02);
-        }
-        .fixed-footer button.generate-button {
-            background-color: #8A2BE2;
-        }
-        .fixed-footer button.generate-button:hover {
-            background-color: #6A1BA0;
-        }
-        .fixed-footer button.manage-button {
-            background-color: #20B2AA;
-        }
-        .fixed-footer button.manage-button:hover {
-            background-color: #1A8B83;
-        }
-        .fixed-footer button.stats-button {
-            background-color: #4682B4;
-        }
-        .fixed-footer button.stats-button:hover {
-            background-color: #36648B;
-        }
-
-
         /* Media Queries pour ajustements sur écrans plus grands (tablette/desktop) */
         @media (min-width: 768px) {
             body {
-                padding-bottom: 90px; /* Plus de padding pour le footer sur desktop */
+                padding-bottom: 15px; /* Revert padding for desktop */
             }
             .header {
                 flex-direction: row;
@@ -2126,11 +2135,11 @@
                 width: auto;
                 max-width: none;
             }
-            .action-buttons-container {
+            .action-buttons-top {
                 flex-direction: row;
                 justify-content: center;
             }
-            .action-buttons-container button {
+            .action-buttons-top button {
                 width: auto;
                 max-width: none;
             }
@@ -2166,10 +2175,6 @@
             }
             .manage-attractions-page .current-attractions-list li .attraction-actions {
                 width: auto;
-            }
-            .fixed-footer button {
-                font-size: 1.1em; /* Revenir à la taille normale sur desktop */
-                max-width: 200px; /* Ajuster la largeur max */
             }
         }
 
@@ -2222,6 +2227,12 @@
         <div id="main-list-page">
             <div class="header">
                 <h1>🎉 Notes des Attractions 🎉</h1>
+                <!-- Boutons d'action déplacés en haut -->
+                <div class="action-buttons-top">
+                    <button class="stats-button" onclick="showStatsPage()">Voir les Statistiques</button>
+                    <button class="generate-button" onclick="requestTestNotesManagementAccess()">Gérer les notes de test</button>
+                    <button class="manage-button" onclick="requestManageAttractionsAccess()">Gérer les attractions</button>
+                </div>
             </div>
             <h2>Choisissez une attraction à noter :</h2>
             <div class="filters-container">
@@ -2239,7 +2250,6 @@
                 <button id="sortByRatingButton" class="sort-button">Trier par note</button>
             </div>
             <div class="attraction-list" id="attractionList"></div>
-            <!-- Les boutons d'action sont maintenant dans le footer fixe -->
         </div>
 
         <div id="attraction-detail-page" class="detail-page">
@@ -2329,13 +2339,6 @@
             </div>
             <button class="back-button" onclick="showMainListPage()">Retour aux attractions</button>
         </div>
-    </div>
-
-    <!-- Footer fixe pour les boutons d'action -->
-    <div class="fixed-footer">
-        <button class="stats-button" onclick="showStatsPage()">Voir les Statistiques</button>
-        <button class="generate-button" onclick="requestTestNotesManagementAccess()">Gérer les notes de test</button>
-        <button class="manage-button" onclick="requestManageAttractionsAccess()">Gérer les attractions</button>
     </div>
 </body>
 </html>
