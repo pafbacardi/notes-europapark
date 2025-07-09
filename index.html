@@ -7,6 +7,7 @@
     <script type="module">
         // Importation des modules Firebase nécessaires
         // Ajout de 'writeBatch' pour les opérations par lots
+        // CORRECTION: Ajout de 'from' dans l'import initializeApp
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, addDoc, getDocs, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
@@ -931,12 +932,12 @@
 
         // Fonction pour configurer les écouteurs en temps réel
         async function setupFirebaseListeners() {
-            console.log("SETUP FIREBASE LISTENERS: Configuration des écouteurs onSnapshot.");
+            console.log("FIRESTORE: Attaching onSnapshot listener for attractions...");
             // Écouteur en temps réel pour les attractions
             const attractionsColRef = collection(db, `artifacts/${appId}/public/data/attractions`);
             onSnapshot(attractionsColRef, (snapshot) => {
                 attractions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                console.log("ON SNAPSHOT (ATTRACTIONS): Attractions mises à jour:", attractions);
+                console.log("FIRESTORE: Attractions data received. Count:", attractions.length);
 
                 // Mettre à jour l'interface utilisateur dépendante des attractions
                 renderAttractionList();
@@ -979,12 +980,13 @@
                 attractionsLoaded = true; // Marque les attractions comme chargées
                 checkAndHideLoading(); // Vérifie si tout est chargé
             }, (error) => {
-                console.error("ON SNAPSHOT ERROR (ATTRACTIONS): Erreur lors de l'écoute des attractions:", error);
+                console.error("FIRESTORE ERROR (Attractions): Erreur lors de l'écoute des attractions:", error);
                 showCustomAlert("Erreur de chargement des attractions en temps réel.");
                 attractionsLoaded = true; // Marque comme chargé même en cas d'erreur
                 checkAndHideLoading();
             });
 
+            console.log("FIRESTORE: Attaching onSnapshot listener for ratings...");
             // Écouteur en temps réel pour les notes
             const ratingsColRef = collection(db, `artifacts/${appId}/public/data/ratings`);
             onSnapshot(ratingsColRef, (snapshot) => {
@@ -996,7 +998,7 @@
                     const data = doc.data();
                     allRatings[doc.id] = data;
                 });
-                console.log("ON SNAPSHOT (RATINGS): Notes mises à jour:", allRatings);
+                console.log("FIRESTORE: Ratings data received. Count:", Object.keys(allRatings).length);
 
                 // Mettre à jour l'interface utilisateur dépendante des notes
                 renderAttractionList(); // Pour mettre à jour les moyennes sur les cartes
@@ -1012,7 +1014,7 @@
                 ratingsLoaded = true; // Marque les notes comme chargées
                 checkAndHideLoading(); // Vérifie si tout est chargé
             }, (error) => {
-                console.error("ON SNAPSHOT ERROR (RATINGS): Erreur lors de l'écoute des notes:", error);
+                console.error("FIRESTORE ERROR (Ratings): Erreur lors de l'écoute des notes:", error);
                 showCustomAlert("Erreur de chargement des notes en temps réel.");
                 ratingsLoaded = true; // Marque comme chargé même en cas d'erreur
                 checkAndHideLoading();
@@ -1034,30 +1036,40 @@
             }
             console.log("FIREBASE CONFIG OK: projectId trouvé:", firebaseConfig.projectId);
 
-            // Initialisation de Firebase
-            app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            auth = getAuth(app);
-            console.log("FIREBASE INIT: Firebase initialisé.");
+            try {
+                // Initialisation de Firebase
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                console.log("FIREBASE INIT: Firebase initialisé.");
+            } catch (initError) {
+                console.error("FIREBASE INIT ERROR: Erreur lors de l'initialisation de Firebase:", initError);
+                showCustomAlert("Erreur critique: Impossible d'initialiser Firebase. Veuillez vérifier la console pour plus de détails.");
+                hideLoading();
+                return;
+            }
+
 
             // Gérer l'état d'authentification
             onAuthStateChanged(auth, async (user) => {
                 if (user) {
                     userId = user.uid;
-                    console.log("AUTH STATE CHANGED: Utilisateur Firebase connecté avec UID:", userId);
+                    console.log("AUTH: Utilisateur Firebase connecté avec UID:", userId);
                 } else {
                     // Si pas d'utilisateur, se connecter anonymement
                     try {
-                        console.log("AUTH STATE CHANGED: Tentative de connexion anonyme...");
+                        console.log("AUTH: Tentative de connexion anonyme...");
                         if (initialAuthToken) {
                             await signInWithCustomToken(auth, initialAuthToken);
+                            console.log("AUTH: Connexion avec jeton personnalisé réussie.");
                         } else {
                             await signInAnonymously(auth);
+                            console.log("AUTH: Connexion anonyme réussie.");
                         }
                         userId = auth.currentUser.uid;
-                        console.log("AUTH STATE CHANGED: Connecté anonymement avec UID:", userId);
+                        console.log("AUTH: Utilisateur actuel UID:", userId);
                     } catch (error) {
-                        console.error("AUTH ERROR: Erreur lors de la connexion anonyme à Firebase:", error);
+                        console.error("AUTH ERROR: Erreur lors de la connexion à Firebase:", error);
                         showCustomAlert("Erreur de connexion à Firebase. Certaines fonctionnalités pourraient être limitées.");
                         // S'assurer que le chargement est masqué même si l'authentification échoue
                         attractionsLoaded = true;
@@ -2048,27 +2060,27 @@
             width: 100%;
             background-color: rgba(255, 255, 255, 0.95);
             box-shadow: 0 -5px 15px rgba(0,0,0,0.1);
-            padding: 10px 15px;
+            padding: 8px 10px; /* Réduit le padding */
             box-sizing: border-box;
             z-index: 100; /* Assure qu'il est au-dessus du contenu principal */
             display: flex;
             justify-content: center;
             align-items: center;
             flex-wrap: wrap; /* Permet aux boutons de passer à la ligne sur petits écrans */
-            gap: 10px;
+            gap: 8px; /* Réduit l'espace entre les boutons */
         }
         .fixed-footer button {
             background-color: #4682B4;
             color: white;
             border: none;
-            padding: 12px 20px;
+            padding: 10px 15px; /* Réduit le padding des boutons */
             border-radius: 10px;
             cursor: pointer;
-            font-size: 0.9em; /* Taille de police légèrement réduite pour tenir */
+            font-size: 0.8em; /* Réduit la taille de police */
             font-weight: bold;
             transition: background-color 0.3s ease, transform 0.2s ease;
             flex-grow: 1; /* Permet aux boutons de s'étirer */
-            max-width: 180px; /* Limite la largeur sur écrans larges */
+            max-width: 150px; /* Limite la largeur sur écrans larges */
             box-sizing: border-box;
         }
         .fixed-footer button:hover {
