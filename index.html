@@ -5,21 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Notes des Attractions Europa-Park & Rulantica</title>
     <script type="module">
-        // --- Firebase modules sont temporairement désactivés comme demandé ---
-        // import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        // import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        // import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // Importation des modules Firebase nécessaires
+        // Ajout de 'writeBatch' pour les opérations par lots
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, addDoc, getDocs, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Variables globales (Firebase est désactivé pour le moment)
-        // let app;
-        // let db;
-        // let auth;
-        // let userId; // L'ID de l'utilisateur Firebase (non utilisé pour le moment)
+        // Variables globales pour Firebase (initialisées plus tard)
+        let app;
+        let db;
+        let auth;
+        let userId; // L'ID de l'utilisateur Firebase
+
+        // Variables globales fournies par l'environnement Canvas (NE PAS MODIFIER)
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        // L'initialAuthToken est toujours fourni par l'environnement Canvas
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // --- Configuration Firebase directe (utilisant les informations que tu as fournies) ---
+        // Cette configuration est maintenant codée en dur pour éviter les problèmes de transmission via __firebase_config.
+        const firebaseConfig = {
+            apiKey: "AIzaSyBteaEF6X5B-NmKBaTj05PsHhEkpGm4WR0",
+            authDomain: "notes-europapark-861c5.firebaseapp.com",
+            projectId: "notes-europapark-861c5",
+            storageBucket: "notes-europapark-861c5.firebasestorage.app",
+            messagingSenderId: "143494361989",
+            appId: "1:143494361989:web:ac191fdb04c73967aa8aec"
+        };
+
 
         // --- Données des attractions (initialement vide, sera chargée depuis Firebase) ---
         let attractions = [];
-        // Stockage temporaire des notes (non persistant dans cette version)
-        // Ces notes seront perdues au rechargement de la page.
+        // Stockage des notes (maintenant persistant avec Firebase)
         const allRatings = {}; // Structure: { attractionId: { memberName: rating, ... }, ... }
 
         let currentAttraction = null; // Garde l'attraction actuellement affichée
@@ -102,15 +119,27 @@
         // Global variable to track which action requested the password
         let currentPasswordAction = null; // 'manageAttractions' or 'testNotes'
 
+        // Flags pour le chargement initial des données
+        let attractionsLoaded = false;
+        let ratingsLoaded = false;
+
         // --- Fonctions d'affichage des pages ---
         function showLoading() {
-            // Cette fonction ne fait rien pour le moment car le chargement est désactivé
-            // loadingOverlay.style.display = 'flex';
+            console.log("SHOW LOADING: Affichage de l'overlay de chargement.");
+            loadingOverlay.style.display = 'flex';
         }
 
         function hideLoading() {
-            // Cette fonction ne fait rien pour le moment car le chargement est désactivé
-            // loadingOverlay.style.display = 'none';
+            console.log("HIDE LOADING: Masquage de l'overlay de chargement.");
+            loadingOverlay.style.display = 'none';
+        }
+
+        // Vérifie si les deux types de données sont chargés et masque le spinner
+        function checkAndHideLoading() {
+            console.log(`CHECK AND HIDE LOADING: Attractions chargées: ${attractionsLoaded}, Notes chargées: ${ratingsLoaded}`);
+            if (attractionsLoaded && ratingsLoaded) {
+                hideLoading();
+            }
         }
 
         function hideAllPages() {
@@ -203,7 +232,7 @@
             testNotesOptionsModal.classList.add('visible');
         }
 
-        // --- Fonctions de gestion des attractions (en mémoire, non persistantes) ---
+        // --- Fonctions de gestion des attractions (maintenant persistantes avec Firebase) ---
 
         function openAttractionForm(attractionId = null) {
             let attraction = null;
@@ -247,7 +276,12 @@
             }
         }
 
-        function saveAttraction() {
+        async function saveAttraction() {
+            if (!db) {
+                showCustomAlert("Firebase n'est pas initialisé. Veuillez réessayer.");
+                return;
+            }
+
             const id = attractionIdToEdit.value;
             const name = attractionNameInput.value.trim();
             const park = attractionParkSelect.value;
@@ -261,55 +295,56 @@
                 return;
             }
 
-            showLoading(); // Appelle showLoading, mais il ne fait rien maintenant
+            showLoading();
             try {
                 const attractionData = { name, park, zone, category, url, imageUrl };
+                const attractionsColRef = collection(db, `artifacts/${appId}/public/data/attractions`);
 
                 if (id) {
-                    // Mise à jour d'une attraction existante en mémoire
-                    const index = attractions.findIndex(att => att.id === id);
-                    if (index !== -1) {
-                        attractions[index] = { ...attractions[index], ...attractionData };
-                        showCustomAlert(`Attraction "${name}" mise à jour !`);
-                    } else {
-                        showCustomAlert("Erreur: Attraction à mettre à jour non trouvée.");
-                    }
+                    // Mise à jour d'une attraction existante dans Firestore
+                    await setDoc(doc(attractionsColRef, id), attractionData);
+                    showCustomAlert(`Attraction "${name}" mise à jour !`);
                 } else {
-                    // Ajout d'une nouvelle attraction en mémoire
-                    const newId = Date.now().toString(); // Génère un ID simple basé sur le timestamp
-                    attractions.push({ id: newId, ...attractionData });
-                    showCustomAlert(`Attraction "${name}" ajoutée !`);
+                    // Ajout d'une nouvelle attraction dans Firestore
+                    const newDocRef = await addDoc(attractionsColRef, attractionData);
+                    showCustomAlert(`Attraction "${name}" ajoutée avec l'ID: ${newDocRef.id} !`);
                 }
-                renderAttractionList();
-                renderManagedAttractionsList();
-                populateZoneFilter();
+                // Les affichages seront mis à jour par l'onSnapshot
+                openAttractionForm(); // Réinitialise le formulaire
             } catch (error) {
                 console.error("Erreur lors de la sauvegarde de l'attraction :", error);
                 showCustomAlert("Erreur lors de la sauvegarde de l'attraction. Veuillez réessayer.");
             } finally {
-                hideLoading(); // Appelle hideLoading, mais il ne fait rien maintenant
-                openAttractionForm(); // Réinitialise le formulaire
+                hideLoading();
             }
         }
 
-        function deleteAttraction(attractionId) {
+        async function deleteAttraction(attractionId) {
+            if (!db) {
+                showCustomAlert("Firebase n'est pas initialisé. Veuillez réessayer.");
+                return;
+            }
+
             const attractionToDelete = attractions.find(att => att.id === attractionId);
             if (!attractionToDelete) return;
 
-            showCustomConfirm(`Voulez-vous vraiment supprimer l'attraction "${attractionToDelete.name}" ?`, (confirmed) => {
+            showCustomConfirm(`Voulez-vous vraiment supprimer l'attraction "${attractionToDelete.name}" ?`, async (confirmed) => {
                 if (confirmed) {
-                    showLoading(); // Appelle showLoading, mais il ne fait rien maintenant
+                    showLoading();
                     try {
-                        attractions = attractions.filter(att => att.id !== attractionId); // Supprime de la liste en mémoire
-                        delete allRatings[attractionId]; // Supprime les notes associées en mémoire
-                        showCustomAlert(`Attraction "${attractionToDelete.name}" supprimée !`);
-                        renderAttractionList();
-                        renderManagedAttractionsList();
+                        // Supprimer l'attraction de la collection 'attractions'
+                        await deleteDoc(doc(db, `artifacts/${appId}/public/data/attractions`, attractionId));
+
+                        // Supprimer les notes associées de la collection 'ratings'
+                        await deleteDoc(doc(db, `artifacts/${appId}/public/data/ratings`, attractionId));
+
+                        showCustomAlert(`Attraction "${attractionToDelete.name}" et ses notes supprimées !`);
+                        // Les affichages seront mis à jour par l'onSnapshot
                     } catch (error) {
                         console.error("Erreur lors de la suppression de l'attraction :", error);
                         showCustomAlert("Erreur lors de la suppression de l'attraction. Veuillez réessayer.");
                     } finally {
-                        hideLoading(); // Appelle hideLoading, mais il ne fait rien maintenant
+                        hideLoading();
                     }
                 } else {
                     showCustomAlert(`Suppression de "${attractionToDelete.name}" annulée.`);
@@ -451,65 +486,121 @@
             });
         }
 
-        function submitRating(user) {
+        async function submitRating(user) {
+            if (!db) {
+                showCustomAlert("Firebase n'est pas initialisé. Veuillez réessayer.");
+                return;
+            }
             if (!currentAttraction) {
                 showCustomAlert("Veuillez sélectionner une attraction avant de donner une note.");
                 return;
             }
-            const rating = selectedRatingValue; // Utilise la note sélectionnée par les boutons
+            const rating = selectedRatingValue;
 
             const attractionId = currentAttraction.id;
-            if (!allRatings[attractionId]) {
-                allRatings[attractionId] = {};
+            const ratingDocRef = doc(db, `artifacts/${appId}/public/data/ratings`, attractionId);
+
+            showLoading();
+            try {
+                // Met à jour la note pour le membre spécifique dans le document de notes de l'attraction
+                // Utilise setDoc avec merge: true pour créer le document s'il n'existe pas, ou fusionner s'il existe
+                await setDoc(ratingDocRef, { [user]: rating }, { merge: true });
+
+                triggerConfetti();
+                showCustomAlert(`Note de ${rating}/10 enregistrée pour ${currentAttraction.name} par ${user} !`);
+                // Les affichages seront mis à jour par l'onSnapshot
+            } catch (error) {
+                console.error("Erreur lors de la soumission de la note :", error);
+                showCustomAlert("Erreur lors de l'enregistrement de la note. Veuillez réessayer.");
+            } finally {
+                hideLoading();
             }
-            allRatings[attractionId][user] = rating;
-            triggerConfetti();
-            showCustomAlert(`Note de ${rating}/10 enregistrée pour ${currentAttraction.name} par ${user} !`);
-            updateRatingsDisplay();
-            renderAttractionList();
         }
 
-        function generateTestRatings() {
-            // Efface toutes les notes existantes
-            for (const attractionId in allRatings) {
-                delete allRatings[attractionId];
+        async function generateTestRatings() {
+            if (!db) {
+                showCustomAlert("Firebase n'est pas initialisé. Veuillez réessayer.");
+                return;
             }
-            attractions.forEach(attraction => {
-                if (Math.random() < 0.7) { // 70% de chances d'avoir des notes
-                    allRatings[attraction.id] = {};
-                    familyMembers.forEach(member => {
-                        if (Math.random() < 0.6) { // 60% de chances que chaque membre note
-                            const randomRating = Math.floor(Math.random() * 10) + 1;
-                            allRatings[attraction.id][member.name] = randomRating;
+
+            showLoading();
+            try {
+                const ratingsColRef = collection(db, `artifacts/${appId}/public/data/ratings`);
+                // Utilisation de writeBatch(db) pour créer un nouveau batch
+                const batch = writeBatch(db);
+
+                // Supprimer toutes les notes existantes (pour un re-génération propre)
+                const existingRatingsSnapshot = await getDocs(ratingsColRef);
+                existingRatingsSnapshot.forEach(doc => {
+                    batch.delete(doc.ref);
+                });
+
+                // Générer et ajouter de nouvelles notes de test
+                attractions.forEach(attraction => {
+                    if (Math.random() < 0.7) { // 70% de chances d'avoir des notes
+                        const newRatings = {};
+                        familyMembers.forEach(member => {
+                            if (Math.random() < 0.6) { // 60% de chances que chaque membre note
+                                const randomRating = Math.floor(Math.random() * 10) + 1;
+                                newRatings[member.name] = randomRating;
+                            }
+                        });
+                        if (Object.keys(newRatings).length > 0) {
+                            // Utilise setDoc pour créer ou remplacer le document de notes pour cette attraction
+                            batch.set(doc(ratingsColRef, attraction.id), newRatings);
                         }
-                    });
+                    }
+                });
+
+                await batch.commit(); // Exécute toutes les opérations en une seule fois
+                showCustomAlert("Notes de test générées et sauvegardées !");
+
+                // Réinitialise les filtres et le tri après la génération des notes
+                zoneFilterSelect.value = 'all';
+                filterUnratedOnly = false;
+                showUnratedButton.textContent = 'Voir les non notées';
+                if (sortAscending) {
+                    sortAscending = false;
+                    sortByRatingButton.classList.remove('active');
+                    sortByRatingButton.textContent = 'Trier par note';
                 }
-            });
-            // Réinitialise les filtres et le tri après la génération des notes
-            zoneFilterSelect.value = 'all';
-            filterUnratedOnly = false;
-            showUnratedButton.textContent = 'Voir les non notées';
-            if (sortAscending) {
-                sortAscending = false;
-                sortByRatingButton.classList.remove('active');
-                sortByRatingButton.textContent = 'Trier par note';
+                // Les affichages seront mis à jour par l'onSnapshot
+            } catch (error) {
+                console.error("Erreur lors de la génération des notes de test :", error);
+                showCustomAlert("Erreur lors de la génération des notes de test. Veuillez réessayer.");
+            } finally {
+                hideLoading();
             }
-            renderAttractionList();
-            showCustomAlert("Notes de test générées !");
         }
 
-        // Nouvelle fonction pour supprimer toutes les notes
-        function deleteAllRatings() {
-            // Demande une confirmation avant de supprimer toutes les notes
-            showCustomConfirm("Voulez-vous vraiment supprimer TOUTES les notes ?", (confirmed) => {
+        async function deleteAllRatings() {
+            if (!db) {
+                showCustomAlert("Firebase n'est pas initialisé. Veuillez réessayer.");
+                return;
+            }
+
+            showCustomConfirm("Voulez-vous vraiment supprimer TOUTES les notes ?", async (confirmed) => {
                 if (confirmed) {
-                    for (const attractionId in allRatings) {
-                        delete allRatings[attractionId];
+                    showLoading();
+                    try {
+                        const ratingsColRef = collection(db, `artifacts/${appId}/public/data/ratings`);
+                        const existingRatingsSnapshot = await getDocs(ratingsColRef);
+                        // Utilisation de writeBatch(db) pour créer un nouveau batch
+                        const batch = writeBatch(db);
+
+                        existingRatingsSnapshot.forEach(doc => {
+                            batch.delete(doc.ref);
+                        });
+
+                        await batch.commit();
+                        showCustomAlert("Toutes les notes ont été supprimées de Firebase !");
+                        // Les affichages seront mis à jour par l'onSnapshot
+                    } catch (error) {
+                        console.error("Erreur lors de la suppression de toutes les notes :", error);
+                        showCustomAlert("Erreur lors de la suppression de toutes les notes. Veuillez réessayer.");
+                    } finally {
+                        hideLoading();
                     }
-                    showCustomAlert("Toutes les notes ont été supprimées !");
-                    updateRatingsDisplay(); // Met à jour l'affichage sur la page de détail si elle est ouverte
-                    renderAttractionList(); // Met à jour la liste principale
-                    // testNotesOptionsModal.classList.remove('visible'); // Cette ligne est déplacée dans l'écouteur d'événement
                 } else {
                     showCustomAlert("Suppression des notes annulée.");
                 }
@@ -548,17 +639,38 @@
             }
         }
 
-        function deleteRating(attractionId, userName) {
-            showCustomConfirm(`Voulez-vous vraiment supprimer la note de ${userName} pour cette attraction ?`, (confirmed) => {
+        async function deleteRating(attractionId, userName) {
+            if (!db) {
+                showCustomAlert("Firebase n'est pas initialisé. Veuillez réessayer.");
+                return;
+            }
+
+            showCustomConfirm(`Voulez-vous vraiment supprimer la note de ${userName} pour cette attraction ?`, async (confirmed) => {
                 if (confirmed) {
-                    if (allRatings[attractionId] && allRatings[attractionId][userName] !== undefined) {
-                        delete allRatings[attractionId][userName];
-                        if (Object.keys(allRatings[attractionId]).length === 0) {
-                            delete allRatings[attractionId];
+                    showLoading();
+                    try {
+                        const ratingDocRef = doc(db, `artifacts/${appId}/public/data/ratings`, attractionId);
+                        const currentRatings = allRatings[attractionId] || {};
+
+                        // Crée un nouvel objet sans la note du membre
+                        const updatedRatings = { ...currentRatings };
+                        delete updatedRatings[userName];
+
+                        if (Object.keys(updatedRatings).length === 0) {
+                            // Si plus aucune note pour cette attraction, supprime le document de notes
+                            await deleteDoc(ratingDocRef);
+                        } else {
+                            // Sinon, met à jour le document avec les notes restantes
+                            await setDoc(ratingDocRef, updatedRatings);
                         }
+
                         showCustomAlert(`Note de ${userName} supprimée !`);
-                        updateRatingsDisplay();
-                        renderAttractionList();
+                        // Les affichages seront mis à jour par l'onSnapshot
+                    } catch (error) {
+                        console.error("Erreur lors de la suppression de la note :", error);
+                        showCustomAlert("Erreur lors de la suppression de la note. Veuillez réessayer.");
+                    } finally {
+                        hideLoading();
                     }
                 } else {
                     showCustomAlert(`Suppression de la note de ${userName} annulée.`);
@@ -789,42 +901,249 @@
             };
         }
 
-        // Fonction d'initialisation des données (sans Firebase pour le moment)
-        async function initializeData() {
-            // Données initiales des attractions
-            const initialAttractionsData = [
-                { id: 'silver-star', name: 'Silver Star', park: 'Europa-Park', zone: 'France', category: 'Action', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/silver-star', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Silver%20Star%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG%20%281%29.jpg?itok=3K1k7P-X' },
-                { id: 'blue-fire', name: 'blue fire Megacoaster', park: 'Europa-Park', zone: 'Islande', category: 'Action', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/blue-fire-megacoaster-powered-by-gazprom', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/blue%20fire%20Megacoaster%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG%20%281%29.jpg?itok=3K1k7P-X' },
-                { id: 'wodan', name: 'WODAN - Timburcoaster', park: 'Europa-Park', zone: 'Islande', category: 'Action', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/wodan-timburcoaster', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/WODAN%20Timburcoaster%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                { id: 'eurosat', name: 'Eurosat - CanCan Coaster', park: 'Europa-Park', zone: 'France', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/eurosat-cancan-coaster', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Eurosat%20CanCan%20Coaster%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                { id: 'matterhorn-blitz', name: 'Matterhorn Blitz', park: 'Europa-Park', zone: 'Suisse', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/matterhorn-blitz', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Matterhorn%20Blitz%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                { id: 'pirates-batavia', name: 'Pirates de Batavia', park: 'Europa-Park', zone: 'Pays-Bas', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/pirates-de-batavia', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Piraten%20in%20Batavia%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                { id: 'voletarium', name: 'Voletarium', park: 'Europa-Park', zone: 'Allemagne', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/voletarium', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Voletarium%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                { id: 'minimoys-arthur', name: 'ARTHUR', park: 'Europa-Park', zone: 'Royaume des Minimoys', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/arthur', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/ARTHUR%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                { id: 'alpenexpress', name: 'Alpine Coaster Enzian', park: 'Europa-Park', zone: 'Autriche', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/alpenexpress-enzian', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Alpenexpress%20Enzian%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                { id: 'tirol-log-flume', name: 'Bûches du Tyrol', park: 'Europa-Park', zone: 'Autriche', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/b%C3%BBches-du-tyrol', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Tiroler%20Wildwasserbahn%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                { id: 'sleigh-ride-snowflake', name: 'Traîneau express "Flocon de Neige"', park: 'Europa-Park', zone: 'Russie', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/traineau-express-flocon-de-neige', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Schlittenfahrt%20Schneefl%C3%B6ckchen%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                { id: 'ba-a-a-express', name: 'Ba-a-a Express', park: 'Europa-Park', zone: 'Irlande', category: 'Enfant', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/ba-a-a-express', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Ba-a-a%20Express%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                { id: 'koffiekopjes', name: 'Koffiekopjes', park: 'Europa-Park', zone: 'Pays-Bas', category: 'Enfant', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/koffiekopjes', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Koffiekopjes%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                { id: 'lilliputiens', name: 'Lilliputiens – l’Aire de Jeux Aquatique hansgrohe', park: 'Europa-Park', zone: 'Islande', category: 'Enfant', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/lilliputiens-%E2%80%93-laire-de-jeux-aquatique-hansgrohe', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Lilliputiens%20%E2%80%93%20l%E2%80%99Aire%20de%20Jeux%20Aquatique%20hansgrohe%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                { id: 'vikinglop', name: 'Vikingløp', park: 'Rulantica', zone: 'Nordiskturn', category: 'Action', url: 'https://www.europapark.de/fr/rulantica/attractions/vikinglop', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Vikingl%C3%B8p%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                { id: 'svalgur-rytt', name: 'Svalgur Rytt', park: 'Rulantica', zone: 'Rangnakor', category: 'Action', url: 'https://www.europapark.de/fr/rulantica/attractions/svalgur-rytt', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Svalgur%20Rytt%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                { id: 'vildstrom', name: 'Vildstrøm', park: 'Rulantica', zone: 'Svalgurok', category: 'Famille', url: 'https://www.europapark.de/fr/rulantica/attractions/vildstr%C3%B8m', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Vildstr%C3%B8m%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                { id: 'snorri-touren', name: 'Snorri Touren', park: 'Europa-Park', zone: 'Scandinavie', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/snorri-touren', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Snorri%20Touren%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                { id: 'surf-fjord', name: 'Surf Fjørd', park: 'Rulantica', zone: 'Lumåfals', category: 'Famille', url: 'https://www.europapark.de/fr/rulantica/attractions/surf-fj%C3%B8rd', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Surf%20Fj%C3%B8rd%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                { id: 'snorris-strand', name: 'Snorri Strand', park: 'Rulantica', zone: 'Trølldal', category: 'Enfant', url: 'https://www.europapark.de/fr/rulantica/attractions/snorri-strand', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Snorri%20Strand%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
-                { id: 'tommelplums', name: 'Tommelplums', park: 'Rulantica', zone: 'Trølldal', category: 'Enfant', url: 'https://www.europapark.de/fr/rulantica/attractions/tommelplums', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Tommelplums%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' }
-            ];
+        // Fonction pour partager les détails de l'attraction et les notes
+        function shareAttraction() {
+            if (!currentAttraction) {
+                showCustomAlert("Veuillez sélectionner une attraction pour la partager.");
+                return;
+            }
 
-            attractions = initialAttractionsData;
-            console.log("Attractions chargées en mémoire (sans Firebase):", attractions);
-            renderAttractionList();
-            renderManagedAttractionsList();
-            populateZoneFilter();
+            const attractionId = currentAttraction.id;
+            const currentAttractionRatings = allRatings[attractionId] || {};
+            const average = calculateAverageRatingForAttraction(attractionId);
+
+            let shareText = `🎉 Notes pour ${currentAttraction.name} à ${currentAttraction.park} !\n`;
+            shareText += `Zone : ${currentAttraction.zone} - Catégorie : ${currentAttraction.category}\n`;
+
+            shareText += `Notes de la famille :\n`;
+            familyMembers.forEach(member => {
+                const score = currentAttractionRatings[member.name] !== undefined ? currentAttractionRatings[member.name] : 'N/A';
+                shareText += `- ${member.name} : ${score}/10\n`;
+            });
+            shareText += `Moyenne de la famille : ${average}/10\n`;
+
+            if (currentAttraction.url) {
+                shareText += `Plus d'infos : ${currentAttraction.url}\n`;
+            }
+
+            if (navigator.share) {
+                // Utilise l'API Web Share si disponible
+                navigator.share({
+                    title: `Notes pour ${currentAttraction.name}`,
+                    text: shareText,
+                    url: currentAttraction.url || window.location.href // Utilise l'URL de l'attraction ou l'URL actuelle
+                }).then(() => {
+                    console.log('Partage réussi !');
+                }).catch((error) => {
+                    console.error('Erreur de partage :', error);
+                    showCustomAlert('Échec du partage. Le texte a été copié dans le presse-papiers.');
+                    navigator.clipboard.writeText(shareText).then(() => {
+                        showCustomAlert('Texte copié dans le presse-papiers !');
+                    }).catch(err => {
+                        console.error('Erreur lors de la copie :', err);
+                    });
+                });
+            } else {
+                // Fallback pour les navigateurs qui ne supportent pas l'API Web Share
+                navigator.clipboard.writeText(shareText).then(() => {
+                    showCustomAlert('Texte copié dans le presse-papiers !');
+                }).catch(err => {
+                    console.error('Erreur lors de la copie :', err);
+                    showCustomAlert('Échec de la copie du texte dans le presse-papiers.');
+                });
+            }
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            initializeData(); // Appel de la fonction d'initialisation sans chargement
+        // Fonction pour peupler les attractions initiales si la collection est vide
+        async function populateInitialAttractions() {
+            console.log("POPULATE INITIAL ATTRACTIONS: Vérification des données initiales.");
+            const attractionsColRef = collection(db, `artifacts/${appId}/public/data/attractions`);
+            const snapshot = await getDocs(attractionsColRef);
+
+            // Vérifie si la collection est vide ET si les données initiales n'ont pas déjà été chargées
+            if (snapshot.empty && !localStorage.getItem('initialDataLoaded')) {
+                console.log("POPULATE INITIAL ATTRACTIONS: Aucune attraction trouvée dans Firebase, chargement des données initiales.");
+                const initialAttractionsData = [
+                    { id: 'silver-star', name: 'Silver Star', park: 'Europa-Park', zone: 'France', category: 'Action', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/silver-star', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Silver%20Star%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG%20%281%29.jpg?itok=3K1k7P-X' },
+                    { id: 'blue-fire', name: 'blue fire Megacoaster', park: 'Europa-Park', zone: 'Islande', category: 'Action', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/blue-fire-megacoaster-powered-by-gazprom', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/blue%20fire%20Megacoaster%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG%20%281%29.jpg?itok=3K1k7P-X' },
+                    { id: 'wodan', name: 'WODAN - Timburcoaster', park: 'Europa-Park', zone: 'Islande', category: 'Action', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/wodan-timburcoaster', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/WODAN%20Timburcoaster%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'eurosat', name: 'Eurosat - CanCan Coaster', park: 'Europa-Park', zone: 'France', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/eurosat-cancan-coaster', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Eurosat%20CanCan%20Coaster%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'matterhorn-blitz', name: 'Matterhorn Blitz', park: 'Europa-Park', zone: 'Suisse', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/matterhorn-blitz', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Matterhorn%20Blitz%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'pirates-batavia', name: 'Pirates de Batavia', park: 'Europa-Park', zone: 'Pays-Bas', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/pirates-de-batavia', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Piraten%20in%20Batavia%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'voletarium', name: 'Voletarium', park: 'Europa-Park', zone: 'Allemagne', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/voletarium', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Voletarium%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'minimoys-arthur', name: 'ARTHUR', park: 'Europa-Park', zone: 'Royaume des Minimoys', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/arthur', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/ARTHUR%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'alpenexpress', name: 'Alpine Coaster Enzian', park: 'Europa-Park', zone: 'Autriche', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/alpenexpress-enzian', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Alpenexpress%20Enzian%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'tirol-log-flume', name: 'Bûches du Tyrol', park: 'Europa-Park', zone: 'Autriche', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/b%C3%BBches-du-tyrol', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Tiroler%20Wildwasserbahn%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'sleigh-ride-snowflake', name: 'Traîneau express "Flocon de Neige"', park: 'Europa-Park', zone: 'Russie', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/traineau-express-flocon-de-neige', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Schlittenfahrt%20Schneefl%C3%B6ckchen%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'ba-a-a-express', name: 'Ba-a-a Express', park: 'Europa-Park', zone: 'Irlande', category: 'Enfant', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/ba-a-a-express', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-02/Ba-a-a%20Express%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'koffiekopjes', name: 'Koffiekopjes', park: 'Europa-Park', zone: 'Pays-Bas', category: 'Enfant', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/koffiekopjes', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Koffiekopjes%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'lilliputiens', name: 'Lilliputiens – l’Aire de Jeux Aquatique hansgrohe', park: 'Europa-Park', zone: 'Islande', category: 'Enfant', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/lilliputiens-%E2%80%93-laire-de-jeux-aquatique-hansgrohe', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Lilliputiens%20%E2%80%93%20l%E2%80%99Aire%20de%20Jeux%20Aquatique%20hansgrohe%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'vikinglop', name: 'Vikingløp', park: 'Rulantica', zone: 'Nordiskturn', category: 'Action', url: 'https://www.europapark.de/fr/rulantica/attractions/vikinglop', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Vikingl%C3%B8p%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'svalgur-rytt', name: 'Svalgur Rytt', park: 'Rulantica', zone: 'Rangnakor', category: 'Action', url: 'https://www.europapark.de/fr/rulantica/attractions/svalgur-rytt', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Svalgur%20Rytt%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'vildstrom', name: 'Vildstrøm', park: 'Rulantica', zone: 'Svalgurok', category: 'Famille', url: 'https://www.europapark.de/fr/rulantica/attractions/vildstr%C3%B8m', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Vildstr%C3%B8m%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'snorri-touren', name: 'Snorri Touren', park: 'Europa-Park', zone: 'Scandinavie', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/snorri-touren', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Snorri%20Touren%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'surf-fjord', name: 'Surf Fjørd', park: 'Rulantica', zone: 'Lumåfals', category: 'Famille', url: 'https://www.europapark.de/fr/rulantica/attractions/surf-fj%C3%B8rd', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Surf%20Fj%C3%B8rd%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'snorris-strand', name: 'Snorri Strand', park: 'Rulantica', zone: 'Trølldal', category: 'Enfant', url: 'https://www.europapark.de/fr/rulantica/attractions/snorri-strand', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Snorri%20Strand%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'tommelplums', name: 'Tommelplums', park: 'Rulantica', zone: 'Trølldal', category: 'Enfant', url: 'https://www.europapark.de/fr/rulantica/attractions/tommelplums', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Tommelplums%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' }
+                ];
+                // Utilisation de writeBatch(db) pour créer un nouveau batch
+                const batch = writeBatch(db);
+                for (const att of initialAttractionsData) {
+                    batch.set(doc(attractionsColRef, att.id), att);
+                }
+                await batch.commit();
+                localStorage.setItem('initialDataLoaded', 'true'); // Marque les données initiales comme chargées
+                console.log("POPULATE INITIAL ATTRACTIONS: Données initiales sauvegardées dans Firebase.");
+            } else if (snapshot.empty && localStorage.getItem('initialDataLoaded')) {
+                console.log("POPULATE INITIAL ATTRACTIONS: Collection vide mais données initiales déjà tentées de charger. Pas de nouvelle population.");
+            } else {
+                console.log("POPULATE INITIAL ATTRACTIONS: Attractions déjà présentes dans Firebase.");
+            }
+        }
+
+        // Fonction pour configurer les écouteurs en temps réel
+        async function setupFirebaseListeners() {
+            console.log("SETUP FIREBASE LISTENERS: Configuration des écouteurs onSnapshot.");
+            // Écouteur en temps réel pour les attractions
+            const attractionsColRef = collection(db, `artifacts/${appId}/public/data/attractions`);
+            onSnapshot(attractionsColRef, (snapshot) => {
+                attractions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                console.log("ON SNAPSHOT (ATTRACTIONS): Attractions mises à jour:", attractions);
+
+                // Mettre à jour l'interface utilisateur dépendante des attractions
+                renderAttractionList();
+                renderManagedAttractionsList();
+                populateZoneFilter();
+                if (attractionDetailPage.style.display === 'block' && currentAttraction) {
+                    currentAttraction = attractions.find(att => att.id === currentAttraction.id); // Rafraîchit currentAttraction
+                    if (currentAttraction) {
+                         // Met à jour l'affichage uniquement si currentAttraction est toujours valide
+                        detailAttractionName.textContent = currentAttraction.name;
+                        detailAttractionPark.textContent = currentAttraction.park;
+                        detailAttractionZone.textContent = currentAttraction.zone;
+                        detailAttractionCategory.textContent = currentAttraction.category;
+                        if (currentAttraction.url) {
+                            detailAttractionUrl.href = currentAttraction.url;
+                            detailAttractionUrl.style.display = 'inline';
+                        } else {
+                            detailAttractionUrl.style.display = 'none';
+                        }
+                        if (currentAttraction.imageUrl) {
+                            detailAttractionImage.src = currentAttraction.imageUrl;
+                            detailAttractionImage.alt = `Image de ${currentAttraction.name}`;
+                            detailAttractionImage.style.display = 'block';
+                        } else {
+                            detailAttractionImage.src = "https://placehold.co/400x250/cccccc/333333?text=Image+non+disponible";
+                            detailAttractionImage.alt = "Image non disponible";
+                            detailAttractionImage.style.display = 'block';
+                        }
+                    } else {
+                        // Si l'attraction actuelle a été supprimée, revenir à la liste principale
+                        showMainListPage();
+                    }
+                }
+                if (statsPage.style.display === 'block') {
+                    renderIndividualRatingsForPerson();
+                    renderAverageByPerson();
+                    renderAverageByZone();
+                    renderAverageByCategory();
+                }
+                attractionsLoaded = true; // Marque les attractions comme chargées
+                checkAndHideLoading(); // Vérifie si tout est chargé
+            }, (error) => {
+                console.error("ON SNAPSHOT ERROR (ATTRACTIONS): Erreur lors de l'écoute des attractions:", error);
+                showCustomAlert("Erreur de chargement des attractions en temps réel.");
+                attractionsLoaded = true; // Marque comme chargé même en cas d'erreur
+                checkAndHideLoading();
+            });
+
+            // Écouteur en temps réel pour les notes
+            const ratingsColRef = collection(db, `artifacts/${appId}/public/data/ratings`);
+            onSnapshot(ratingsColRef, (snapshot) => {
+                // Efface les notes existantes avant de les remplir à partir du snapshot
+                for (const key in allRatings) {
+                    delete allRatings[key];
+                }
+                snapshot.docs.forEach(doc => {
+                    const data = doc.data();
+                    allRatings[doc.id] = data;
+                });
+                console.log("ON SNAPSHOT (RATINGS): Notes mises à jour:", allRatings);
+
+                // Mettre à jour l'interface utilisateur dépendante des notes
+                renderAttractionList(); // Pour mettre à jour les moyennes sur les cartes
+                if (attractionDetailPage.style.display === 'block') {
+                    updateRatingsDisplay(); // Pour mettre à jour les notes sur la page de détail
+                }
+                if (statsPage.style.display === 'block') {
+                    renderIndividualRatingsForPerson();
+                    renderAverageByPerson();
+                    renderAverageByZone();
+                    renderAverageByCategory();
+                }
+                ratingsLoaded = true; // Marque les notes comme chargées
+                checkAndHideLoading(); // Vérifie si tout est chargé
+            }, (error) => {
+                console.error("ON SNAPSHOT ERROR (RATINGS): Erreur lors de l'écoute des notes:", error);
+                showCustomAlert("Erreur de chargement des notes en temps réel.");
+                ratingsLoaded = true; // Marque comme chargé même en cas d'erreur
+                checkAndHideLoading();
+            });
+        }
+
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log("DOM CONTENT LOADED: Initialisation de l'application.");
+            showLoading(); // Affiche le spinner de chargement immédiatement
+
+            // --- Vérification de la configuration Firebase ---
+            // La configuration est maintenant codée en dur, donc cette vérification devrait toujours passer.
+            if (!firebaseConfig || !firebaseConfig.projectId) {
+                console.error("FIREBASE CONFIG ERROR: firebaseConfig ou projectId manquant. firebaseConfig:", firebaseConfig);
+                showCustomAlert("Erreur: La configuration Firebase est incomplète. Veuillez vous assurer que votre projet Firebase est correctement configuré et qu'une application Web y est ajoutée.");
+                hideLoading(); // Masque le spinner car nous ne pouvons pas continuer sans config
+                return; // Arrête l'exécution
+            }
+            console.log("FIREBASE CONFIG OK: projectId trouvé:", firebaseConfig.projectId);
+
+            // Initialisation de Firebase
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+            console.log("FIREBASE INIT: Firebase initialisé.");
+
+            // Gérer l'état d'authentification
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    userId = user.uid;
+                    console.log("AUTH STATE CHANGED: Utilisateur Firebase connecté avec UID:", userId);
+                } else {
+                    // Si pas d'utilisateur, se connecter anonymement
+                    try {
+                        console.log("AUTH STATE CHANGED: Tentative de connexion anonyme...");
+                        if (initialAuthToken) {
+                            await signInWithCustomToken(auth, initialAuthToken);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                        userId = auth.currentUser.uid;
+                        console.log("AUTH STATE CHANGED: Connecté anonymement avec UID:", userId);
+                    } catch (error) {
+                        console.error("AUTH ERROR: Erreur lors de la connexion anonyme à Firebase:", error);
+                        showCustomAlert("Erreur de connexion à Firebase. Certaines fonctionnalités pourraient être limitées.");
+                        // S'assurer que le chargement est masqué même si l'authentification échoue
+                        attractionsLoaded = true;
+                        ratingsLoaded = true;
+                        checkAndHideLoading(); // Tente de masquer le chargement même en cas d'échec d'authentification
+                        return; // Arrête l'exécution si l'authentification échoue
+                    }
+                }
+                // Une fois l'authentification prête, peupler les données initiales si nécessaire, puis configurer les écouteurs
+                await populateInitialAttractions(); // S'assure que les données initiales sont là avant d'écouter
+                setupFirebaseListeners(); // Configure les écouteurs en temps réel
+            });
+
+
             renderFamilyRaterButtons();
             renderRatingButtons(); // Appelle la fonction pour générer les boutons de notation au chargement
             zoneFilterSelect.addEventListener('change', () => {
@@ -907,15 +1226,14 @@
 
         window.showDetailPage = showDetailPage;
         window.showStatsPage = showStatsPage;
-        // La fonction generateTestRatings n'est plus directement appelée par le bouton, mais via la modale
-        // window.generateTestRatings = generateTestRatings; // Garder si elle doit être accessible directement
         window.requestManageAttractionsAccess = requestManageAttractionsAccess;
-        window.requestTestNotesManagementAccess = requestTestNotesManagementAccess; // Exposer la nouvelle fonction
+        window.requestTestNotesManagementAccess = requestTestNotesManagementAccess;
         window.showMainListPage = showMainListPage;
         window.saveAttraction = saveAttraction;
         window.openAttractionForm = openAttractionForm;
         window.deleteAttraction = deleteAttraction;
         window.deleteRating = deleteRating;
+        window.shareAttraction = shareAttraction; // Expose la nouvelle fonction de partage
     </script>
     <style>
         /* Styles généraux pour le corps de la page */
@@ -1373,6 +1691,25 @@
             background-color: #FF7F50;
             transform: scale(1.02);
         }
+        .share-button {
+            background-color: #008080; /* Teal */
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            margin-top: 15px;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            width: 100%;
+            max-width: 300px;
+            box-sizing: border-box;
+        }
+        .share-button:hover {
+            background-color: #006666;
+            transform: scale(1.02);
+        }
 
         /* Page des statistiques */
         .stats-page {
@@ -1792,7 +2129,7 @@
             width: 100%;
             height: 100%;
             background-color: rgba(255, 255, 255, 0.8);
-            display: none; /* Défini à none par défaut */
+            display: flex; /* Défini à none par default */
             justify-content: center;
             align-items: center;
             z-index: 3000;
@@ -1966,6 +2303,7 @@
                 <ul id="familyRatingsList"></ul>
                 <p class="average-score">Moyenne : <span id="averageRating">N/A</span></p>
             </div>
+            <button class="share-button" onclick="shareAttraction()">Partager cette attraction</button>
             <button class="back-button" onclick="showMainListPage()">Retour aux attractions</button>
         </div>
 
