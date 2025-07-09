@@ -717,7 +717,14 @@
                 const rating = allRatings[attraction.id] && allRatings[attraction.id][selectedPersonName] !== undefined
                                ? allRatings[attraction.id][selectedPersonName]
                                : 'N/A';
-                ratingsData.push({ attractionName: attraction.name, rating: rating });
+                // Ajout de l'indicateur de parc à l'attraction
+                let parkEmoji = '';
+                if (attraction.park === 'Europa-Park') {
+                    parkEmoji = '🔵 ';
+                } else if (attraction.park === 'Rulantica') {
+                    parkEmoji = '💧 ';
+                }
+                ratingsData.push({ attractionName: `${parkEmoji}${attraction.name}`, rating: rating });
             });
             ratingsData.sort((a, b) => {
                 const ratingA = a.rating === 'N/A' ? -1 : a.rating;
@@ -786,10 +793,16 @@
         function renderAverageByZone() {
             averageByZoneList.innerHTML = '';
             const zoneScores = {};
+            const zoneParkMap = new Map(); // Pour stocker le parc associé à chaque zone
             attractions.forEach(attraction => {
                 const zone = attraction.zone;
+                const park = attraction.park;
                 if (!zoneScores[zone]) {
                     zoneScores[zone] = { total: 0, count: 0 };
+                }
+                // Stocke le parc pour cette zone (en supposant qu'une zone appartient à un seul parc)
+                if (!zoneParkMap.has(zone)) {
+                    zoneParkMap.set(zone, park);
                 }
                 const attractionRatings = allRatings[attraction.id] || {};
                 for (const memberName in attractionRatings) {
@@ -801,7 +814,14 @@
             for (const zone in zoneScores) {
                 const data = zoneScores[zone];
                 const average = data.count > 0 ? parseFloat((data.total / data.count).toFixed(1)) : 'N/A';
-                averagesData.push({ name: zone, average: average });
+                const park = zoneParkMap.get(zone); // Récupère le parc pour la zone
+                let emoji = '';
+                if (park === 'Europa-Park') {
+                    emoji = '🔵 ';
+                } else if (park === 'Rulantica') {
+                    emoji = '💧 ';
+                }
+                averagesData.push({ name: `${emoji}${zone}`, average: average });
             }
             averagesData.sort((a, b) => {
                 const avgA = a.average === 'N/A' ? -1 : a.average;
@@ -979,8 +999,7 @@
                         } else {
                             detailAttractionImage.src = "https://placehold.co/400x250/cccccc/333333?text=Image+non+disponible";
                             detailAttractionImage.alt = "Image non disponible";
-                            d
-etailAttractionImage.style.display = 'block';
+                            detailAttractionImage.style.display = 'block';
                         }
                     } else {
                         // Si l'attraction actuelle a été supprimée, revenir à la liste principale
