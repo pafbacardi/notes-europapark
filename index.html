@@ -125,6 +125,7 @@
         let attractionsLoaded = false;
         let ratingsLoaded = false;
 
+
         // --- Fonctions d'affichage des pages ---
         function showLoading() {
             console.log("SHOW LOADING: Affichage de l'overlay de chargement.");
@@ -466,9 +467,14 @@
                 const option = document.createElement('option');
                 option.value = zone;
                 const park = zonesMap.get(zone);
-                const parkIndicatorClass = park === 'Europa-Park' ? 'europa-park' : 'rulantica';
-                // Ajoute l'indicateur visuel directement dans le texte de l'option
-                option.innerHTML = `${zone} <span class="park-indicator-inline ${parkIndicatorClass}"></span>`;
+                // Utilise des émojis pour l'indicateur de parc dans l'option
+                let emoji = '';
+                if (park === 'Europa-Park') {
+                    emoji = '🔵 '; // Cercle bleu pour Europa-Park
+                } else if (park === 'Rulantica') {
+                    emoji = '💧 '; // Goutte d'eau pour Rulantica
+                }
+                option.textContent = `${emoji}${zone}`; // Ajoute l'émoji au texte de l'option
                 zoneFilterSelect.appendChild(option);
             });
         }
@@ -973,7 +979,8 @@
                         } else {
                             detailAttractionImage.src = "https://placehold.co/400x250/cccccc/333333?text=Image+non+disponible";
                             detailAttractionImage.alt = "Image non disponible";
-                            detailAttractionImage.style.display = 'block';
+                            d
+etailAttractionImage.style.display = 'block';
                         }
                     } else {
                         // Si l'attraction actuelle a été supprimée, revenir à la liste principale
@@ -1413,22 +1420,22 @@
         .park-indicator.rulantica {
             background-color: #40E0D0;
         }
-        /* Style pour l'indicateur dans le select de filtre */
-        .park-indicator-inline {
+        /* Style pour l'indicateur dans le select de filtre (maintenant remplacé par émojis) */
+        /* .park-indicator-inline {
             display: inline-block;
-            width: 10px; /* Plus petit pour l'affichage inline */
-            height: 10px; /* Plus petit pour l'affichage inline */
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
             margin-left: 5px;
             vertical-align: middle;
-            border: 1px solid rgba(0,0,0,0.2); /* Ajoute une petite bordure pour la visibilité */
+            border: 1px solid rgba(0,0,0,0.2);
         }
         .park-indicator-inline.europa-park {
             background-color: #00008B;
         }
         .park-indicator-inline.rulantica {
             background-color: #40E0D0;
-        }
+        } */
 
         .attraction-card button.rate-attraction-button {
             background-color: #FF4500;
