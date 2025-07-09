@@ -509,7 +509,7 @@
                     showCustomAlert("Toutes les notes ont été supprimées !");
                     updateRatingsDisplay(); // Met à jour l'affichage sur la page de détail si elle est ouverte
                     renderAttractionList(); // Met à jour la liste principale
-                    testNotesOptionsModal.classList.remove('visible'); // Ferme la modale d'options
+                    // testNotesOptionsModal.classList.remove('visible'); // Cette ligne est déplacée dans l'écouteur d'événement
                 } else {
                     showCustomAlert("Suppression des notes annulée.");
                 }
@@ -896,7 +896,8 @@
             });
 
             deleteAllNotesButton.addEventListener('click', () => {
-                deleteAllRatings(); // Appelle la nouvelle fonction de suppression
+                testNotesOptionsModal.classList.remove('visible'); // Ferme la modale d'options AVANT la confirmation
+                deleteAllRatings(); // Appelle la nouvelle fonction de suppression qui contient la confirmation
             });
 
             cancelTestNotesButton.addEventListener('click', () => {
@@ -1936,7 +1937,7 @@
             <div class="action-buttons-container">
                 <button class="stats-button" onclick="showStatsPage()">Voir les Statistiques</button>
                 <!-- Changement ici : appelle la fonction qui gère l'accès sécurisé -->
-                <button class="generate-button" onclick="requestTestNotesManagementAccess()">Générer / Gérer les notes de test</button>
+                <button class="generate-button" onclick="requestTestNotesManagementAccess()">Gérer les notes de test</button>
                 <button class="manage-button" onclick="requestManageAttractionsAccess()">Gérer les attractions</button>
             </div>
         </div>
