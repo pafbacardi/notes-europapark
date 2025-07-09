@@ -42,6 +42,7 @@
         let currentAttraction = null; // Garde l'attraction actuellement affichée
         let sortAscending = false; // Pour le tri par note
         let selectedRatingValue = 1; // Nouvelle variable pour stocker la note sélectionnée par les boutons
+        let searchQuery = ''; // Nouvelle variable pour la recherche
 
         // Membres de la famille avec leurs couleurs
         const familyMembers = [
@@ -79,6 +80,7 @@
         const zoneFilterSelect = document.getElementById('zoneFilter');
         const showUnratedButton = document.getElementById('showUnratedButton');
         const sortByRatingButton = document.getElementById('sortByRatingButton');
+        const attractionSearchInput = document.getElementById('attractionSearchInput'); // Nouvel élément de recherche
         let filterUnratedOnly = false;
 
         // Manage Attractions elements
@@ -379,15 +381,22 @@
         function renderAttractionList() {
             attractionListDiv.innerHTML = '';
             const selectedZone = zoneFilterSelect.value;
+            const lowerCaseSearchQuery = searchQuery.toLowerCase(); // Convertir la requête de recherche en minuscules
 
             let filteredAndSortedAttractions = attractions.filter(attraction => {
+                // Filtrer par zone
                 if (selectedZone !== 'all' && attraction.zone !== selectedZone) {
                     return false;
                 }
+                // Filtrer par non notées
                 if (filterUnratedOnly) {
                     const attractionRatings = allRatings[attraction.id] || {};
                     const hasAnyRating = familyMembers.some(member => attractionRatings[member.name] !== undefined);
                     return !hasAnyRating;
+                }
+                // Filtrer par recherche (nom de l'attraction)
+                if (lowerCaseSearchQuery && !attraction.name.toLowerCase().includes(lowerCaseSearchQuery)) {
+                    return false;
                 }
                 return true;
             });
@@ -564,6 +573,8 @@
                     sortByRatingButton.classList.remove('active');
                     sortByRatingButton.textContent = 'Trier par note';
                 }
+                attractionSearchInput.value = ''; // Réinitialise la recherche
+                searchQuery = '';
                 // Les affichages seront mis à jour par l'onSnapshot
             } catch (error) {
                 console.error("Erreur lors de la génération des notes de test :", error);
@@ -911,16 +922,8 @@
 
             // Vérifie si la collection est vide.
             if (snapshot.empty) {
-                console.log("POPULATE INITIAL ATTRACTIONS: Aucune attraction trouvée dans Firebase, chargement des données initiales.");
-                // La liste des attractions initiales n'est plus en dur ici.
-                // Elle est supposée être déjà dans Firebase ou sera ajoutée via l'interface de gestion.
-                // Si tu souhaites toujours avoir des données par défaut au premier lancement,
-                // tu devras les ajouter manuellement via l'interface de gestion des attractions,
-                // ou les importer d'une autre source (par exemple, un fichier JSON externe).
-
-                // Pour l'instant, cette fonction ne fera rien si la collection est vide,
-                // car les données initiales en dur ont été supprimées.
-                console.log("POPULATE INITIAL ATTRACTIONS: Les données initiales en dur ont été supprimées du code.");
+                console.log("POPULATE INITIAL ATTRACTIONS: Aucune attraction trouvée dans Firebase, les données initiales ne seront pas chargées depuis le code.");
+                console.log("POPULATE INITIAL ATTRACTIONS: Veuillez ajouter des attractions via l'interface de gestion ou importer des données si nécessaire.");
             } else {
                 console.log("POPULATE INITIAL ATTRACTIONS: Attractions déjà présentes dans Firebase.");
             }
@@ -1071,12 +1074,15 @@
 
             renderFamilyRaterButtons();
             renderRatingButtons(); // Appelle la fonction pour générer les boutons de notation au chargement
+            
+            // Écouteurs pour les filtres et le tri
             zoneFilterSelect.addEventListener('change', () => {
                 filterUnratedOnly = false;
                 showUnratedButton.textContent = 'Voir les non notées';
                 sortAscending = false;
                 sortByRatingButton.classList.remove('active');
                 sortByRatingButton.textContent = 'Trier par note';
+                // La recherche n'est pas réinitialisée ici
                 renderAttractionList();
             });
             showUnratedButton.addEventListener('click', () => {
@@ -1086,6 +1092,8 @@
                 sortAscending = false;
                 sortByRatingButton.classList.remove('active');
                 sortByRatingButton.textContent = 'Trier par note';
+                attractionSearchInput.value = ''; // Réinitialise la recherche
+                searchQuery = '';
                 renderAttractionList();
             });
             sortByRatingButton.addEventListener('click', () => {
@@ -1100,8 +1108,24 @@
                 filterUnratedOnly = false;
                 showUnratedButton.textContent = 'Voir les non notées';
                 zoneFilterSelect.value = 'all';
+                attractionSearchInput.value = ''; // Réinitialise la recherche
+                searchQuery = '';
                 renderAttractionList();
             });
+
+            // Nouvel écouteur pour la recherche
+            attractionSearchInput.addEventListener('input', () => {
+                searchQuery = attractionSearchInput.value.trim();
+                // Réinitialiser les autres filtres et le tri lors de la recherche
+                zoneFilterSelect.value = 'all';
+                filterUnratedOnly = false;
+                showUnratedButton.textContent = 'Voir les non notées';
+                sortAscending = false;
+                sortByRatingButton.classList.remove('active');
+                sortByRatingButton.textContent = 'Trier par note';
+                renderAttractionList();
+            });
+
             personSelectForStats.addEventListener('change', renderIndividualRatingsForPerson);
 
             // Gestionnaire pour le bouton OK de la modale de mot de passe
@@ -1158,7 +1182,6 @@
         window.openAttractionForm = openAttractionForm;
         window.deleteAttraction = deleteAttraction;
         window.deleteRating = deleteRating;
-        // window.shareAttraction = shareAttraction; // La fonction de partage a été supprimée
     </script>
     <style>
         /* Styles généraux pour le corps de la page */
@@ -1167,13 +1190,15 @@
             background: linear-gradient(135deg, #FFD700, #FF69B4);
             color: #333;
             margin: 0;
-            padding: 15px;
+            /* Ajuste le padding-bottom pour laisser de la place au footer fixe */
+            padding: 15px 15px 80px 15px; /* 80px pour la hauteur du footer */
             text-align: center;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            justify-content: flex-start; /* Aligne le contenu en haut */
             align-items: center;
+            position: relative; /* Nécessaire pour le footer fixe */
         }
 
         /* Conteneur principal de l'application */
@@ -1188,6 +1213,7 @@
             position: relative;
             overflow: hidden;
             box-sizing: border-box;
+            flex-grow: 1; /* Permet au conteneur de prendre l'espace disponible */
         }
 
         /* Titres */
@@ -1212,57 +1238,7 @@
             margin-bottom: 25px;
         }
 
-        /* Boutons d'action généraux (Stats, Générer notes) */
-        .action-buttons-container {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin-top: 20px;
-            align-items: center;
-        }
-        .action-buttons-container button {
-            background-color: #4682B4;
-            color: white;
-            border: none;
-            padding: 12px 25px;
-            border-radius: 10px;
-            cursor: pointer;
-            font-size: 1.1em;
-            font-weight: bold;
-            transition: background-color 0.3s ease, transform 0.2s ease;
-            width: 100%;
-            max-width: 300px;
-            box-sizing: border-box;
-        }
-        .action-buttons-container button:hover {
-            background-color: #36648B;
-            transform: scale(1.02);
-        }
-        .action-buttons-container button.generate-button {
-            background-color: #8A2BE2;
-        }
-        .action-buttons-container button.generate-button:hover {
-            background-color: #6A1BA0;
-        }
-        .action-buttons-container button.manage-button {
-            background-color: #20B2AA;
-        }
-        .action-buttons-container button.manage-button:hover {
-            background-color: #1A8B83;
-        }
-        .action-buttons-container button.sort-button {
-            background-color: #FFD700;
-            color: #333;
-        }
-        .action-buttons-container button.sort-button:hover {
-            background-color: #FFC400;
-        }
-        .action-buttons-container button.sort-button.active {
-            background-color: #DAA520;
-            color: white;
-        }
-
-        /* Conteneur des filtres */
+        /* Conteneur des filtres et de la recherche */
         .filters-container {
             display: flex;
             flex-direction: column;
@@ -1276,7 +1252,8 @@
             margin-right: 5px;
         }
         .filters-container select,
-        .filters-container button {
+        .filters-container button,
+        .filters-container input[type="text"] { /* Style pour le champ de recherche */
             padding: 10px 15px;
             border-radius: 10px;
             border: 2px solid #8B0000;
@@ -1298,6 +1275,10 @@
         .filters-container button:hover {
             background-color: #CC7000;
             transform: scale(1.02);
+        }
+        /* Style spécifique pour le champ de recherche */
+        .filters-container input[type="text"] {
+            cursor: text;
         }
 
         /* Liste des attractions (grille responsive) */
@@ -2059,17 +2040,77 @@
             100% { transform: rotate(360deg); }
         }
 
+        /* Fixed Footer for action buttons */
+        .fixed-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.1);
+            padding: 10px 15px;
+            box-sizing: border-box;
+            z-index: 100; /* Assure qu'il est au-dessus du contenu principal */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap; /* Permet aux boutons de passer à la ligne sur petits écrans */
+            gap: 10px;
+        }
+        .fixed-footer button {
+            background-color: #4682B4;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.9em; /* Taille de police légèrement réduite pour tenir */
+            font-weight: bold;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            flex-grow: 1; /* Permet aux boutons de s'étirer */
+            max-width: 180px; /* Limite la largeur sur écrans larges */
+            box-sizing: border-box;
+        }
+        .fixed-footer button:hover {
+            background-color: #36648B;
+            transform: scale(1.02);
+        }
+        .fixed-footer button.generate-button {
+            background-color: #8A2BE2;
+        }
+        .fixed-footer button.generate-button:hover {
+            background-color: #6A1BA0;
+        }
+        .fixed-footer button.manage-button {
+            background-color: #20B2AA;
+        }
+        .fixed-footer button.manage-button:hover {
+            background-color: #1A8B83;
+        }
+        .fixed-footer button.stats-button {
+            background-color: #4682B4;
+        }
+        .fixed-footer button.stats-button:hover {
+            background-color: #36648B;
+        }
+
+
         /* Media Queries pour ajustements sur écrans plus grands (tablette/desktop) */
         @media (min-width: 768px) {
+            body {
+                padding-bottom: 90px; /* Plus de padding pour le footer sur desktop */
+            }
             .header {
                 flex-direction: row;
             }
             .filters-container {
                 flex-direction: row;
                 justify-content: center;
+                flex-wrap: wrap; /* Permet aux éléments de filtre de s'enrouler */
             }
             .filters-container select,
-            .filters-container button {
+            .filters-container button,
+            .filters-container input[type="text"] {
                 width: auto;
                 max-width: none;
             }
@@ -2113,6 +2154,10 @@
             }
             .manage-attractions-page .current-attractions-list li .attraction-actions {
                 width: auto;
+            }
+            .fixed-footer button {
+                font-size: 1.1em; /* Revenir à la taille normale sur desktop */
+                max-width: 200px; /* Ajuster la largeur max */
             }
         }
 
@@ -2169,6 +2214,10 @@
             <h2>Choisissez une attraction à noter :</h2>
             <div class="filters-container">
                 <div>
+                    <label for="attractionSearchInput">Rechercher :</label>
+                    <input type="text" id="attractionSearchInput" placeholder="Nom de l'attraction">
+                </div>
+                <div>
                     <label for="zoneFilter">Filtrer par zone :</label>
                     <select id="zoneFilter">
                         <option value="all">Toutes les zones</option>
@@ -2178,12 +2227,7 @@
                 <button id="sortByRatingButton" class="sort-button">Trier par note</button>
             </div>
             <div class="attraction-list" id="attractionList"></div>
-            <div class="action-buttons-container">
-                <button class="stats-button" onclick="showStatsPage()">Voir les Statistiques</button>
-                <!-- Changement ici : appelle la fonction qui gère l'accès sécurisé -->
-                <button class="generate-button" onclick="requestTestNotesManagementAccess()">Gérer les notes de test</button>
-                <button class="manage-button" onclick="requestManageAttractionsAccess()">Gérer les attractions</button>
-            </div>
+            <!-- Les boutons d'action sont maintenant dans le footer fixe -->
         </div>
 
         <div id="attraction-detail-page" class="detail-page">
@@ -2210,7 +2254,6 @@
                 <ul id="familyRatingsList"></ul>
                 <p class="average-score">Moyenne : <span id="averageRating">N/A</span></p>
             </div>
-            <!-- Le bouton de partage a été supprimé ici -->
             <button class="back-button" onclick="showMainListPage()">Retour aux attractions</button>
         </div>
 
@@ -2274,6 +2317,13 @@
             </div>
             <button class="back-button" onclick="showMainListPage()">Retour aux attractions</button>
         </div>
+    </div>
+
+    <!-- Footer fixe pour les boutons d'action -->
+    <div class="fixed-footer">
+        <button class="stats-button" onclick="showStatsPage()">Voir les Statistiques</button>
+        <button class="generate-button" onclick="requestTestNotesManagementAccess()">Gérer les notes de test</button>
+        <button class="manage-button" onclick="requestManageAttractionsAccess()">Gérer les attractions</button>
     </div>
 </body>
 </html>
