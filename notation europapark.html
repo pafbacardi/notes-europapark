@@ -1,0 +1,1850 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notes des Attractions Europa-Park & Rulantica</title>
+    <script type="module">
+        // Importation des modules Firebase nécessaires
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Variables globales pour Firebase (initialisées plus tard)
+        let app;
+        let db;
+        let auth;
+        let userId; // L'ID de l'utilisateur Firebase
+
+        // --- Données des attractions (initialement vide, sera chargée depuis Firebase) ---
+        let attractions = [];
+        // Stockage temporaire des notes (non persistant dans cette version)
+        const allRatings = {};
+
+        let currentAttraction = null; // Garde l'attraction actuellement affichée
+        let sortAscending = false; // Pour le tri par note
+
+        // Membres de la famille avec leurs couleurs
+        const familyMembers = [
+            { name: 'Papa', color: '#4169E1' },    // RoyalBlue
+            { name: 'Maman', color: '#FF8C00' },    // DarkOrange
+            { name: 'Ceylian', color: '#DC143C' },  // Crimson
+            { name: 'Cloélie', color: '#32CD32' }   // LimeGreen
+        ];
+
+        // --- Récupération des éléments du DOM ---
+        const mainListPage = document.getElementById('main-list-page');
+        const attractionDetailPage = document.getElementById('attraction-detail-page');
+        const statsPage = document.getElementById('stats-page');
+        const manageAttractionsPage = document.getElementById('manage-attractions-page');
+        const attractionListDiv = document.getElementById('attractionList');
+        const detailAttractionName = document.getElementById('detail-attraction-name');
+        const detailAttractionPark = document.getElementById('detail-attraction-park');
+        const detailAttractionZone = document.getElementById('detail-attraction-zone');
+        const detailAttractionCategory = document.getElementById('detail-attraction-category');
+        const detailAttractionUrl = document.getElementById('detail-attraction-url');
+        const detailAttractionImage = document.getElementById('detail-attraction-image');
+        const ratingSelect = document.getElementById('ratingSelect');
+        const familyRaterButtonsDiv = document.getElementById('familyRaterButtons');
+        const familyRatingsList = document.getElementById('familyRatingsList');
+        const averageRatingSpan = document.getElementById('averageRating');
+
+        // Stats elements
+        const personSelectForStats = document.getElementById('personSelectForStats');
+        const individualRatingsList = document.getElementById('individualRatingsList');
+        const averageByPersonList = document.getElementById('averageByPersonList');
+        const averageByZoneList = document.getElementById('averageByZoneList');
+        const averageByCategoryList = document.getElementById('averageByCategoryList');
+
+        // Filter elements
+        const zoneFilterSelect = document.getElementById('zoneFilter');
+        const showUnratedButton = document.getElementById('showUnratedButton');
+        const sortByRatingButton = document.getElementById('sortByRatingButton');
+        let filterUnratedOnly = false;
+
+        // Manage Attractions elements
+        const attractionFormTitle = document.getElementById('attractionFormTitle');
+        const attractionIdToEdit = document.getElementById('attractionIdToEdit');
+        const attractionNameInput = document.getElementById('attractionName');
+        const attractionParkSelect = document.getElementById('attractionPark');
+        const attractionZoneInput = document.getElementById('attractionZone');
+        const attractionCategorySelect = document.getElementById('attractionCategory');
+        const attractionUrlInput = document.getElementById('attractionUrl');
+        const attractionImageUrlInput = document.getElementById('attractionImageUrl');
+        const saveAttractionButton = document.getElementById('saveAttractionButton');
+        const currentManagedAttractionsList = document.getElementById('currentManagedAttractionsList');
+
+        // Custom Modal elements
+        const customConfirmModal = document.getElementById('customConfirmModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalMessage = document.getElementById('modalMessage');
+        const modalConfirmYes = document.getElementById('modalConfirmYes');
+        const modalConfirmNo = document.getElementById('modalConfirmNo');
+
+        // Password Modal elements
+        const passwordModal = document.getElementById('passwordModal');
+        const passwordInput = document.getElementById('passwordInput');
+        const passwordOkButton = document.getElementById('passwordOkButton');
+        const passwordCancelButton = document.getElementById('passwordCancelButton');
+        const CORRECT_PASSWORD = 'EP2025';
+
+        // Loading indicator
+        const loadingOverlay = document.getElementById('loadingOverlay');
+
+        // --- Fonctions d'affichage des pages ---
+        function showLoading() {
+            loadingOverlay.style.display = 'flex';
+        }
+
+        function hideLoading() {
+            loadingOverlay.style.display = 'none';
+        }
+
+        function hideAllPages() {
+            mainListPage.style.display = 'none';
+            attractionDetailPage.style.display = 'none';
+            statsPage.style.display = 'none';
+            manageAttractionsPage.style.display = 'none';
+        }
+
+        function showMainListPage() {
+            hideAllPages();
+            mainListPage.style.display = 'block';
+            renderAttractionList(); // Re-render pour mettre à jour les moyennes sur les cartes et appliquer les filtres
+            populateZoneFilter(); // Met à jour les options du filtre de zone
+        }
+
+        function showDetailPage(attractionId) {
+            hideAllPages();
+            currentAttraction = attractions.find(att => att.id === attractionId);
+            if (!currentAttraction) {
+                console.error("Attraction non trouvée dans showDetailPage:", attractionId);
+                showCustomAlert("L'attraction demandée n'a pas été trouvée.");
+                showMainListPage();
+                return;
+            }
+            console.log("showDetailPage: currentAttraction défini comme", currentAttraction.name);
+
+            detailAttractionName.textContent = currentAttraction.name;
+            detailAttractionPark.textContent = currentAttraction.park;
+            detailAttractionZone.textContent = currentAttraction.zone;
+            detailAttractionCategory.textContent = currentAttraction.category;
+
+            if (currentAttraction.url) {
+                detailAttractionUrl.href = currentAttraction.url;
+                detailAttractionUrl.style.display = 'inline';
+            } else {
+                detailAttractionUrl.style.display = 'none';
+            }
+
+            if (currentAttraction.imageUrl) {
+                detailAttractionImage.src = currentAttraction.imageUrl;
+                detailAttractionImage.alt = `Image de ${currentAttraction.name}`;
+                detailAttractionImage.style.display = 'block';
+            } else {
+                detailAttractionImage.src = "https://placehold.co/400x250/cccccc/333333?text=Image+non+disponible";
+                detailAttractionImage.alt = "Image non disponible";
+                detailAttractionImage.style.display = 'block';
+            }
+
+            ratingSelect.value = '1';
+            updateRatingsDisplay();
+            attractionDetailPage.style.display = 'block';
+        }
+
+        function showStatsPage() {
+            hideAllPages();
+            statsPage.style.display = 'block';
+            renderIndividualRatingsForPerson();
+            renderAverageByPerson();
+            renderAverageByZone();
+            renderAverageByCategory();
+        }
+
+        function requestManageAttractionsAccess() {
+            passwordModal.classList.add('visible');
+            passwordInput.value = '';
+            passwordInput.focus();
+        }
+
+        function showManageAttractionsPage() {
+            hideAllPages();
+            manageAttractionsPage.style.display = 'block';
+            openAttractionForm();
+            renderManagedAttractionsList();
+        }
+
+        // --- Fonctions de gestion des attractions (Firebase) ---
+
+        function openAttractionForm(attractionId = null) {
+            let attraction = null;
+            if (attractionId) {
+                attraction = attractions.find(att => att.id === attractionId);
+                if (!attraction) {
+                    console.error("Attraction à modifier non trouvée:", attractionId);
+                    attractionFormTitle.textContent = 'Ajouter une nouvelle attraction';
+                    attractionIdToEdit.value = '';
+                    attractionNameInput.value = '';
+                    attractionParkSelect.value = 'Europa-Park';
+                    attractionZoneInput.value = '';
+                    attractionCategorySelect.value = 'Famille';
+                    attractionUrlInput.value = '';
+                    attractionImageUrlInput.value = '';
+                    saveAttractionButton.textContent = 'Ajouter l\'attraction';
+                    return;
+                }
+            }
+
+            if (attraction) {
+                attractionFormTitle.textContent = `Modifier : ${attraction.name}`;
+                attractionIdToEdit.value = attraction.id;
+                attractionNameInput.value = attraction.name;
+                attractionParkSelect.value = attraction.park;
+                attractionZoneInput.value = attraction.zone;
+                attractionCategorySelect.value = attraction.category;
+                attractionUrlInput.value = attraction.url || '';
+                attractionImageUrlInput.value = attraction.imageUrl || '';
+                saveAttractionButton.textContent = 'Mettre à jour l\'attraction';
+            } else {
+                attractionFormTitle.textContent = 'Ajouter une nouvelle attraction';
+                attractionIdToEdit.value = '';
+                attractionNameInput.value = '';
+                attractionParkSelect.value = 'Europa-Park';
+                attractionZoneInput.value = '';
+                attractionCategorySelect.value = 'Famille';
+                attractionUrlInput.value = '';
+                attractionImageUrlInput.value = '';
+                saveAttractionButton.textContent = 'Ajouter l\'attraction';
+            }
+        }
+
+        async function saveAttraction() {
+            const id = attractionIdToEdit.value;
+            const name = attractionNameInput.value.trim();
+            const park = attractionParkSelect.value;
+            const zone = attractionZoneInput.value.trim();
+            const category = attractionCategorySelect.value;
+            const url = attractionUrlInput.value.trim();
+            const imageUrl = attractionImageUrlInput.value.trim();
+
+            if (!name || !park || !zone || !category) {
+                showCustomAlert("Veuillez remplir tous les champs obligatoires (Nom, Parc, Zone, Catégorie).");
+                return;
+            }
+
+            showLoading();
+            try {
+                const attractionData = { name, park, zone, category, url, imageUrl };
+                const collectionRef = collection(db, `artifacts/${__app_id}/public/data/attractions`);
+
+                if (id) {
+                    await setDoc(doc(collectionRef, id), attractionData);
+                    showCustomAlert(`Attraction "${name}" mise à jour !`);
+                } else {
+                    const docRef = await addDoc(collectionRef, attractionData);
+                    await setDoc(docRef, { id: docRef.id, ...attractionData });
+                    showCustomAlert(`Attraction "${name}" ajoutée !`);
+                }
+            } catch (error) {
+                console.error("Erreur lors de la sauvegarde de l'attraction :", error);
+                showCustomAlert("Erreur lors de la sauvegarde de l'attraction. Veuillez réessayer.");
+            } finally {
+                hideLoading();
+                openAttractionForm();
+            }
+        }
+
+        async function deleteAttraction(attractionId) {
+            const attractionToDelete = attractions.find(att => att.id === attractionId);
+            if (!attractionToDelete) return;
+
+            showCustomConfirm(`Voulez-vous vraiment supprimer l'attraction "${attractionToDelete.name}" ?`, async (confirmed) => {
+                if (confirmed) {
+                    showLoading();
+                    try {
+                        const docRef = doc(db, `artifacts/${__app_id}/public/data/attractions`, attractionId);
+                        await deleteDoc(docRef);
+                        delete allRatings[attractionId];
+                        showCustomAlert(`Attraction "${attractionToDelete.name}" supprimée !`);
+                    } catch (error) {
+                        console.error("Erreur lors de la suppression de l'attraction :", error);
+                        showCustomAlert("Erreur lors de la suppression de l'attraction. Veuillez réessayer.");
+                    } finally {
+                        hideLoading();
+                    }
+                } else {
+                    showCustomAlert(`Suppression de "${attractionToDelete.name}" annulée.`);
+                }
+            });
+        }
+
+        function renderManagedAttractionsList() {
+            currentManagedAttractionsList.innerHTML = '';
+            if (attractions.length === 0) {
+                currentManagedAttractionsList.innerHTML = '<p style="margin-top: 15px; font-style: italic; color: #666;">Aucune attraction n\'est encore enregistrée.</p>';
+                return;
+            }
+
+            attractions.forEach(attraction => {
+                const li = document.createElement('li');
+                const parkIndicatorClass = attraction.park === 'Europa-Park' ? 'europa-park' : 'rulantica';
+                li.innerHTML = `
+                    <div class="attraction-info">
+                        ${attraction.name} (${attraction.park} <span class="park-indicator ${parkIndicatorClass}"></span>)
+                    </div>
+                    <div class="attraction-actions">
+                        <button class="edit-button" onclick="openAttractionForm('${attraction.id}')">Modifier</button>
+                        <button class="delete-button" onclick="deleteAttraction('${attraction.id}')">Supprimer</button>
+                    </div>
+                `;
+                currentManagedAttractionsList.appendChild(li);
+            });
+        }
+
+        // --- Génération de la liste des attractions avec filtres et tri ---
+        function renderAttractionList() {
+            attractionListDiv.innerHTML = '';
+            const selectedZone = zoneFilterSelect.value;
+
+            let filteredAndSortedAttractions = attractions.filter(attraction => {
+                if (selectedZone !== 'all' && attraction.zone !== selectedZone) {
+                    return false;
+                }
+                if (filterUnratedOnly) {
+                    const attractionRatings = allRatings[attraction.id] || {};
+                    const hasAnyRating = familyMembers.some(member => attractionRatings[member.name] !== undefined);
+                    return !hasAnyRating;
+                }
+                return true;
+            });
+
+            if (sortAscending) {
+                filteredAndSortedAttractions.sort((a, b) => {
+                    const avgA = calculateAverageRatingForAttraction(a.id);
+                    const avgB = calculateAverageRatingForAttraction(b.id);
+                    if (avgA === 'N/A' && avgB === 'N/A') return 0;
+                    if (avgA === 'N/A') return 1;
+                    if (avgB === 'N/A') return -1;
+                    return avgB - avgA;
+                });
+            }
+
+            if (filteredAndSortedAttractions.length === 0) {
+                attractionListDiv.innerHTML = '<p style="margin-top: 30px; font-style: italic; color: #666;">Aucune attraction ne correspond à vos critères de filtre.</p>';
+                return;
+            }
+
+            filteredAndSortedAttractions.forEach(attraction => {
+                const averageAttractionDisplay = calculateAverageRatingForAttraction(attraction.id) !== 'N/A'
+                    ? `Moyenne: ${ calculateAverageRatingForAttraction(attraction.id) }/10`
+                    : 'Non notée';
+                const parkIndicatorClass = attraction.park === 'Europa-Park' ? 'europa-park' : 'rulantica';
+                const card = document.createElement('div');
+                card.className = 'attraction-card';
+                card.innerHTML = `
+                    <h3>${attraction.name}</h3>
+                    <p><strong>Parc :</strong> ${attraction.park} <span class="park-indicator ${parkIndicatorClass}"></span></p>
+                    <p><strong>Zone :</strong> ${attraction.zone}</p>
+                    <span class="category ${attraction.category}">${attraction.category}</span>
+                    <p class="average-on-card">${averageAttractionDisplay}</p>
+                    <button class="rate-attraction-button" onclick="showDetailPage('${attraction.id}')">Noter cette attraction</button>
+                `;
+                attractionListDiv.appendChild(card);
+            });
+        }
+
+        function calculateAverageRatingForAttraction(attractionId) {
+            let totalAttractionScore = 0;
+            let numAttractionRatings = 0;
+            const attractionRatings = allRatings[attractionId] || {};
+
+            familyMembers.forEach(member => {
+                if (attractionRatings[member.name] !== undefined) {
+                    totalAttractionScore += attractionRatings[member.name];
+                    numAttractionRatings++;
+                }
+            });
+            return numAttractionRatings > 0 ? parseFloat((totalAttractionScore / numAttractionRatings).toFixed(1)) : 'N/A';
+        }
+
+        function populateZoneFilter() {
+            const zones = new Set(attractions.map(att => att.zone));
+            zoneFilterSelect.innerHTML = '<option value="all">Toutes les zones</option>';
+            const sortedZones = Array.from(zones).sort();
+            sortedZones.forEach(zone => {
+                const option = document.createElement('option');
+                option.value = zone;
+                option.textContent = zone;
+                zoneFilterSelect.appendChild(option);
+            });
+        }
+
+        function renderFamilyRaterButtons() {
+            familyRaterButtonsDiv.innerHTML = '';
+            familyMembers.forEach(member => {
+                const button = document.createElement('button');
+                button.textContent = member.name;
+                button.className = member.name.toLowerCase();
+                button.onclick = () => submitRating(member.name);
+                familyRaterButtonsDiv.appendChild(button);
+            });
+        }
+
+        function submitRating(user) {
+            if (!currentAttraction) {
+                showCustomAlert("Veuillez sélectionner une attraction avant de donner une note.");
+                return;
+            }
+            const ratingValue = ratingSelect.value;
+            const rating = parseInt(ratingValue, 10);
+            if (isNaN(rating) || rating < 1 || rating > 10) {
+                showCustomAlert("Veuillez sélectionner une note valide (entre 1 et 10).");
+                return;
+            }
+            const attractionId = currentAttraction.id;
+            if (!allRatings[attractionId]) {
+                allRatings[attractionId] = {};
+            }
+            allRatings[attractionId][user] = rating;
+            triggerConfetti();
+            showCustomAlert(`Note de ${rating}/10 enregistrée pour ${currentAttraction.name} par ${user} !`);
+            updateRatingsDisplay();
+            renderAttractionList();
+        }
+
+        function generateTestRatings() {
+            for (const attractionId in allRatings) {
+                delete allRatings[attractionId];
+            }
+            attractions.forEach(attraction => {
+                if (Math.random() < 0.7) {
+                    allRatings[attraction.id] = {};
+                    familyMembers.forEach(member => {
+                        if (Math.random() < 0.6) {
+                            const randomRating = Math.floor(Math.random() * 10) + 1;
+                            allRatings[attraction.id][member.name] = randomRating;
+                        }
+                    });
+                }
+            });
+            zoneFilterSelect.value = 'all';
+            filterUnratedOnly = false;
+            showUnratedButton.textContent = 'Voir les non notées';
+            if (sortAscending) {
+                sortAscending = false;
+                sortByRatingButton.classList.remove('active');
+                sortByRatingButton.textContent = 'Trier par note';
+            }
+            renderAttractionList();
+            showCustomAlert("Notes de test générées !");
+        }
+
+        function updateRatingsDisplay() {
+            if (!currentAttraction) return;
+            const attractionId = currentAttraction.id;
+            const currentAttractionRatings = allRatings[attractionId] || {};
+            familyRatingsList.innerHTML = '';
+            let totalScore = 0;
+            let numRatings = 0;
+            familyMembers.forEach(member => {
+                const li = document.createElement('li');
+                const score = currentAttractionRatings[member.name] !== undefined ? currentAttractionRatings[member.name] : 'N/A';
+                li.innerHTML = `
+                    ${member.name} : 
+                    <span class="score-value">
+                        <span class="score-${member.name.toLowerCase()}">${score}</span>
+                        ${score !== 'N/A' ? `<span class="delete-rating-icon" onclick="deleteRating('${attractionId}', '${member.name}')">✖️</span>` : ''}
+                    </span>
+                `;
+                familyRatingsList.appendChild(li);
+                if (score !== 'N/A') {
+                    totalScore += score;
+                    numRatings++;
+                }
+            });
+            if (numRatings > 0) {
+                const average = (totalScore / numRatings).toFixed(1);
+                averageRatingSpan.textContent = average;
+            } else {
+                averageRatingSpan.textContent = 'N/A';
+            }
+        }
+
+        function deleteRating(attractionId, userName) {
+            showCustomConfirm(`Voulez-vous vraiment supprimer la note de ${userName} pour cette attraction ?`, (confirmed) => {
+                if (confirmed) {
+                    if (allRatings[attractionId] && allRatings[attractionId][userName] !== undefined) {
+                        delete allRatings[attractionId][userName];
+                        if (Object.keys(allRatings[attractionId]).length === 0) {
+                            delete allRatings[attractionId];
+                        }
+                        showCustomAlert(`Note de ${userName} supprimée !`);
+                        updateRatingsDisplay();
+                        renderAttractionList();
+                    }
+                } else {
+                    showCustomAlert(`Suppression de la note de ${userName} annulée.`);
+                }
+            });
+        }
+
+        function renderIndividualRatingsForPerson() {
+            individualRatingsList.innerHTML = '';
+            const selectedPersonName = personSelectForStats.value;
+            if (!selectedPersonName) {
+                individualRatingsList.innerHTML = '<li>Sélectionnez une personne pour voir ses notes.</li>';
+                return;
+            }
+            let ratingsData = [];
+            attractions.forEach(attraction => {
+                const rating = allRatings[attraction.id] && allRatings[attraction.id][selectedPersonName] !== undefined
+                               ? allRatings[attraction.id][selectedPersonName]
+                               : 'N/A';
+                ratingsData.push({ attractionName: attraction.name, rating: rating });
+            });
+            ratingsData.sort((a, b) => {
+                const ratingA = a.rating === 'N/A' ? -1 : a.rating;
+                const ratingB = b.rating === 'N/A' ? -1 : b.rating;
+                return ratingB - ratingA;
+            });
+            let hasRatings = false;
+            ratingsData.forEach(item => {
+                const li = document.createElement('li');
+                li.textContent = `${item.attractionName} : `;
+                const scoreSpan = document.createElement('span');
+                scoreSpan.textContent = item.rating;
+                scoreSpan.className = `score-${selectedPersonName.toLowerCase()}`;
+                li.appendChild(scoreSpan);
+                individualRatingsList.appendChild(li);
+                if (item.rating !== 'N/A') {
+                    hasRatings = true;
+                }
+            });
+            if (!hasRatings && selectedPersonName !== "") {
+                individualRatingsList.innerHTML = `<li>${selectedPersonName} n'a pas encore noté d'attractions.</li>`;
+            }
+        }
+
+        function renderAverageByPerson() {
+            averageByPersonList.innerHTML = '';
+            const personScores = {};
+            familyMembers.forEach(member => {
+                personScores[member.name] = { total: 0, count: 0 };
+            });
+            for (const attractionId in allRatings) {
+                const attractionRatings = allRatings[attractionId];
+                for (const memberName in attractionRatings) {
+                    if (personScores[memberName]) {
+                        personScores[memberName].total += attractionRatings[memberName];
+                        personScores[memberName].count++;
+                    }
+                }
+            }
+            const averagePersonData = [];
+            familyMembers.forEach(member => {
+                const data = personScores[member.name];
+                const average = data.count > 0 ? parseFloat((data.total / data.count).toFixed(1)) : 'N/A';
+                averagePersonData.push({ name: member.name, average: average, colorClass: `score-${member.name.toLowerCase()}` });
+            });
+            averagePersonData.sort((a, b) => {
+                const avgA = a.average === 'N/A' ? -1 : a.average;
+                const avgB = b.average === 'N/A' ? -1 : b.average;
+                return avgB - avgA;
+            });
+            if (averagePersonData.every(data => data.average === 'N/A')) {
+                averageByPersonList.innerHTML = '<li>Aucune note enregistrée pour calculer les moyennes par personne.</li>';
+                return;
+            }
+            averagePersonData.forEach(item => {
+                const li = document.createElement('li');
+                li.textContent = `${item.name} : `;
+                const scoreSpan = document.createElement('span');
+                scoreSpan.textContent = item.average !== 'N/A' ? `${item.average}/10` : 'N/A';
+                scoreSpan.className = item.colorClass;
+                li.appendChild(scoreSpan);
+                averageByPersonList.appendChild(li);
+            });
+        }
+
+        function renderAverageByZone() {
+            averageByZoneList.innerHTML = '';
+            const zoneScores = {};
+            attractions.forEach(attraction => {
+                const zone = attraction.zone;
+                if (!zoneScores[zone]) {
+                    zoneScores[zone] = { total: 0, count: 0 };
+                }
+                const attractionRatings = allRatings[attraction.id] || {};
+                for (const memberName in attractionRatings) {
+                    zoneScores[zone].total += attractionRatings[memberName];
+                    zoneScores[zone].count++;
+                }
+            });
+            let averagesData = [];
+            for (const zone in zoneScores) {
+                const data = zoneScores[zone];
+                const average = data.count > 0 ? parseFloat((data.total / data.count).toFixed(1)) : 'N/A';
+                averagesData.push({ name: zone, average: average });
+            }
+            averagesData.sort((a, b) => {
+                const avgA = a.average === 'N/A' ? -1 : a.average;
+                const avgB = b.average === 'N/A' ? -1 : b.average;
+                return avgB - avgA;
+            });
+            if (averagesData.every(data => data.average === 'N/A')) {
+                averageByZoneList.innerHTML = '<li>Aucune note enregistrée pour calculer les moyennes par zone.</li>';
+                return;
+            }
+            averagesData.forEach(item => {
+                const li = document.createElement('li');
+                li.textContent = `${item.name} : `;
+                const scoreSpan = document.createElement('span');
+                scoreSpan.textContent = item.average !== 'N/A' ? `${item.average}/10` : 'N/A';
+                scoreSpan.style.color = item.average !== 'N/A' ? '#008080' : '#888';
+                li.appendChild(scoreSpan);
+                averageByZoneList.appendChild(li);
+            });
+        }
+
+        function renderAverageByCategory() {
+            averageByCategoryList.innerHTML = '';
+            const categoryScores = {};
+            attractions.forEach(attraction => {
+                const category = attraction.category;
+                if (!categoryScores[category]) {
+                    categoryScores[category] = { total: 0, count: 0 };
+                }
+                const attractionRatings = allRatings[attraction.id] || {};
+                for (const memberName in attractionRatings) {
+                    categoryScores[category].total += attractionRatings[memberName];
+                    categoryScores[category].count++;
+                }
+            });
+            let averagesData = [];
+            for (const category in categoryScores) {
+                const data = categoryScores[category];
+                const average = data.count > 0 ? parseFloat((data.total / data.count).toFixed(1)) : 'N/A';
+                averagesData.push({ name: category, average: average });
+            }
+            averagesData.sort((a, b) => {
+                const avgA = a.average === 'N/A' ? -1 : a.average;
+                const avgB = b.average === 'N/A' ? -1 : b.average;
+                return avgB - avgA;
+            });
+            if (averagesData.every(data => data.average === 'N/A')) {
+                averageByCategoryList.innerHTML = '<li>Aucune note enregistrée pour calculer les moyennes par catégorie.</li>';
+                return;
+            }
+            averagesData.forEach(item => {
+                const li = document.createElement('li');
+                li.textContent = `${item.name} : `;
+                const scoreSpan = document.createElement('span');
+                scoreSpan.textContent = item.average !== 'N/A' ? `${item.average}/10` : 'N/A';
+                scoreSpan.style.color = item.average !== 'N/A' ? '#008080' : '#888';
+                li.appendChild(scoreSpan);
+                averageByCategoryList.appendChild(li);
+            });
+        }
+
+        function triggerConfetti() {
+            const confettiContainer = document.getElementById('confetti-container');
+            const colors = ['#FFD700', '#FF69B4', '#ADD8E6', '#98FB98', '#FF4500'];
+            const numConfetti = 50;
+            for (let i = 0; i < numConfetti; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.setProperty('--color', colors[Math.floor(Math.random() * colors.length)]);
+                confetti.style.setProperty('--duration', `${Math.random() * 2 + 3}s`);
+                confetti.style.left = `${Math.random() * 100}vw`;
+                confetti.style.top = `${Math.random() * -20}vh`;
+                confettiContainer.appendChild(confetti);
+                confetti.addEventListener('animationend', () => {
+                    confetti.remove();
+                });
+            }
+        }
+
+        function showCustomAlert(message) {
+            const alertBox = document.createElement('div');
+            alertBox.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background-color: #4CAF50;
+                color: white;
+                padding: 20px 30px;
+                border-radius: 15px;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+                font-family: 'Comic Sans MS', cursive, sans-serif;
+                font-size: 1.2em;
+                z-index: 2000;
+                opacity: 0;
+                transition: opacity 0.3s ease-in-out;
+                max-width: 80vw;
+                word-wrap: break-word;
+            `;
+            alertBox.textContent = message;
+            document.body.appendChild(alertBox);
+            setTimeout(() => {
+                alertBox.style.opacity = 1;
+            }, 10);
+            setTimeout(() => {
+                alertBox.style.opacity = 0;
+                alertBox.addEventListener('transitionend', () => alertBox.remove());
+            }, 3000);
+        }
+
+        function showCustomConfirm(message, callback) {
+            modalTitle.textContent = "Confirmer l'action";
+            modalMessage.textContent = message;
+            customConfirmModal.classList.add('visible');
+            modalConfirmYes.onclick = null;
+            modalConfirmNo.onclick = null;
+            modalConfirmYes.onclick = () => {
+                customConfirmModal.classList.remove('visible');
+                callback(true);
+            };
+            modalConfirmNo.onclick = () => {
+                customConfirmModal.classList.remove('visible');
+                callback(false);
+            };
+        }
+
+        async function initializeFirebaseAndLoadData() {
+            showLoading();
+            try {
+                const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                if (typeof __initial_auth_token !== 'undefined') {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                userId = auth.currentUser?.uid || crypto.randomUUID();
+                const attractionsCollectionRef = collection(db, `artifacts/${__app_id}/public/data/attractions`);
+                onSnapshot(attractionsCollectionRef, (snapshot) => {
+                    attractions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    console.log("Attractions chargées/mises à jour depuis Firestore:", attractions);
+                    renderAttractionList();
+                    renderManagedAttractionsList();
+                    populateZoneFilter();
+                    hideLoading();
+                }, (error) => {
+                    console.error("Erreur lors du chargement des attractions depuis Firestore :", error);
+                    showCustomAlert("Erreur lors du chargement des attractions. Veuillez rafraîchir la page.");
+                    hideLoading();
+                });
+                const initialAttractionsData = [
+                    { id: 'silver-star', name: 'Silver Star', park: 'Europa-Park', zone: 'France', category: 'Action', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/silver-star', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Silver%20Star%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG%20%281%29.jpg?itok=3K1k7P-X' },
+                    { id: 'blue-fire', name: 'blue fire Megacoaster', park: 'Europa-Park', zone: 'Islande', category: 'Action', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/blue-fire-megacoaster-powered-by-gazprom', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/blue%20fire%20Megacoaster%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG%20%281%29.jpg?itok=3K1k7P-X' },
+                    { id: 'wodan', name: 'WODAN - Timburcoaster', park: 'Europa-Park', zone: 'Islande', category: 'Action', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/wodan-timburcoaster', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/WODAN%20Timburcoaster%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'eurosat', name: 'Eurosat - CanCan Coaster', park: 'Europa-Park', zone: 'France', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/eurosat-cancan-coaster', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Eurosat%20CanCan%20Coaster%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'matterhorn-blitz', name: 'Matterhorn Blitz', park: 'Europa-Park', zone: 'Suisse', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/matterhorn-blitz', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Matterhorn%20Blitz%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'pirates-batavia', name: 'Pirates de Batavia', park: 'Europa-Park', zone: 'Pays-Bas', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/pirates-de-batavia', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Piraten%20in%20Batavia%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'voletarium', name: 'Voletarium', park: 'Europa-Park', zone: 'Allemagne', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/voletarium', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Voletarium%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'minimoys-arthur', name: 'ARTHUR', park: 'Europa-Park', zone: 'Royaume des Minimoys', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/arthur', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/ARTHUR%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'alpenexpress', name: 'Alpine Coaster Enzian', park: 'Europa-Park', zone: 'Autriche', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/alpenexpress-enzian', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Alpenexpress%20Enzian%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'tirol-log-flume', name: 'Bûches du Tyrol', park: 'Europa-Park', zone: 'Autriche', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/b%C3%BBches-du-tyrol', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Tiroler%20Wildwasserbahn%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'sleigh-ride-snowflake', name: 'Traîneau express "Flocon de Neige"', park: 'Europa-Park', zone: 'Russie', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/traineau-express-flocon-de-neige', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Schlittenfahrt%20Schneefl%C3%B6ckchen%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'ba-a-a-express', name: 'Ba-a-a Express', park: 'Europa-Park', zone: 'Irlande', category: 'Enfant', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/ba-a-a-express', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Ba-a-a%20Express%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'koffiekopjes', name: 'Koffiekopjes', park: 'Europa-Park', zone: 'Pays-Bas', category: 'Enfant', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/koffiekopjes', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Koffiekopjes%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'lilliputiens', name: 'Lilliputiens – l’Aire de Jeux Aquatique hansgrohe', park: 'Europa-Park', zone: 'Islande', category: 'Enfant', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/lilliputiens-%E2%80%93-laire-de-jeux-aquatique-hansgrohe', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Lilliputiens%20%E2%80%93%20l%E2%80%99Aire%20de%20Jeux%20Aquatique%20hansgrohe%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'vikinglop', name: 'Vikingløp', park: 'Rulantica', zone: 'Nordiskturn', category: 'Action', url: 'https://www.europapark.de/fr/rulantica/attractions/vikinglop', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Vikingl%C3%B8p%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'svalgur-rytt', name: 'Svalgur Rytt', park: 'Rulantica', zone: 'Rangnakor', category: 'Action', url: 'https://www.europapark.de/fr/rulantica/attractions/svalgur-rytt', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Svalgur%20Rytt%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'vildstrom', name: 'Vildstrøm', park: 'Rulantica', zone: 'Svalgurok', category: 'Famille', url: 'https://www.europapark.de/fr/rulantica/attractions/vildstr%C3%B8m', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Vildstr%C3%B8m%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'snorri-touren', name: 'Snorri Touren', park: 'Europa-Park', zone: 'Scandinavie', category: 'Famille', url: 'https://www.europapark.de/fr/parc-dattractions/attractions/snorri-touren', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Snorri%20Touren%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'surf-fjord', name: 'Surf Fjørd', park: 'Rulantica', zone: 'Lumåfals', category: 'Famille', url: 'https://www.europapark.de/fr/rulantica/attractions/surf-fj%C3%B8rd', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Surf%20Fj%C3%B8rd%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'snorris-strand', name: 'Snorri Strand', park: 'Rulantica', zone: 'Trølldal', category: 'Enfant', url: 'https://www.europapark.de/fr/rulantica/attractions/snorri-strand', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Snorri%20Strand%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' },
+                    { id: 'tommelplums', name: 'Tommelplums', park: 'Rulantica', zone: 'Trølldal', category: 'Enfant', url: 'https://www.europapark.de/fr/rulantica/attractions/tommelplums', imageUrl: 'https://www.europapark.de/sites/default/files/styles/16_9_1200x675/public/2023-09/Tommelplums%20%28c%29%20Europa-Park%20GmbH%20%26%20Co%20Mack%20KG.jpg?itok=3K1k7P-X' }
+                ];
+                const initialSnapshot = await new Promise(resolve => {
+                    const unsubscribe = onSnapshot(attractionsCollectionRef, (snap) => {
+                        unsubscribe();
+                        resolve(snap);
+                    });
+                });
+                if (initialSnapshot.empty) {
+                    console.log("Collection 'attractions' vide. Ajout des données initiales...");
+                    for (const att of initialAttractionsData) {
+                        const docRef = doc(attractionsCollectionRef);
+                        await setDoc(docRef, { id: docRef.id, ...att });
+                    }
+                    showCustomAlert("Données initiales des attractions ajoutées à Firebase !");
+                }
+            } catch (error) {
+                console.error("Erreur d'initialisation Firebase ou de chargement des données :", error);
+                showCustomAlert("Erreur critique: Impossible de charger l'application. Vérifiez la console pour plus de détails.");
+                hideLoading();
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeFirebaseAndLoadData();
+            renderFamilyRaterButtons();
+            zoneFilterSelect.addEventListener('change', () => {
+                filterUnratedOnly = false;
+                showUnratedButton.textContent = 'Voir les non notées';
+                sortAscending = false;
+                sortByRatingButton.classList.remove('active');
+                sortByRatingButton.textContent = 'Trier par note';
+                renderAttractionList();
+            });
+            showUnratedButton.addEventListener('click', () => {
+                filterUnratedOnly = !filterUnratedOnly;
+                showUnratedButton.textContent = filterUnratedOnly ? 'Voir toutes les attractions' : 'Voir les non notées';
+                zoneFilterSelect.value = 'all';
+                sortAscending = false;
+                sortByRatingButton.classList.remove('active');
+                sortByRatingButton.textContent = 'Trier par note';
+                renderAttractionList();
+            });
+            sortByRatingButton.addEventListener('click', () => {
+                sortAscending = !sortAscending;
+                if (sortAscending) {
+                    sortByRatingButton.classList.add('active');
+                    sortByRatingButton.textContent = 'Trié par note (Desc)';
+                } else {
+                    sortByRatingButton.classList.remove('active');
+                    sortByRatingButton.textContent = 'Trier par note';
+                }
+                filterUnratedOnly = false;
+                showUnratedButton.textContent = 'Voir les non notées';
+                zoneFilterSelect.value = 'all';
+                renderAttractionList();
+            });
+            personSelectForStats.addEventListener('change', renderIndividualRatingsForPerson);
+            passwordOkButton.addEventListener('click', () => {
+                const enteredPassword = passwordInput.value;
+                if (enteredPassword === CORRECT_PASSWORD) {
+                    passwordModal.classList.remove('visible');
+                    showManageAttractionsPage();
+                } else {
+                    showCustomAlert("Mot de passe incorrect. Accès refusé.");
+                    passwordInput.value = '';
+                    passwordInput.focus();
+                }
+            });
+            passwordCancelButton.addEventListener('click', () => {
+                passwordModal.classList.remove('visible');
+                showCustomAlert("Accès à la gestion des attractions annulé.");
+            });
+            passwordInput.addEventListener('keypress', (event) => {
+                if (event.key === 'Enter') {
+                    passwordOkButton.click();
+                }
+            });
+        });
+
+        window.showDetailPage = showDetailPage;
+        window.showStatsPage = showStatsPage;
+        window.generateTestRatings = generateTestRatings;
+        window.requestManageAttractionsAccess = requestManageAttractionsAccess;
+        window.showMainListPage = showMainListPage;
+        window.saveAttraction = saveAttraction;
+        window.openAttractionForm = openAttractionForm;
+        window.deleteAttraction = deleteAttraction;
+        window.deleteRating = deleteRating;
+    </script>
+    <style>
+        /* Styles généraux pour le corps de la page */
+        body {
+            font-family: 'Comic Sans MS', cursive, sans-serif;
+            background: linear-gradient(135deg, #FFD700, #FF69B4);
+            color: #333;
+            margin: 0;
+            padding: 15px;
+            text-align: center;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Conteneur principal de l'application */
+        .container {
+            background-color: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 20px;
+            max-width: 900px;
+            width: 100%;
+            margin: 15px auto;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        /* Titres */
+        h1, h2, h3 {
+            color: #8B0000;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            font-size: 1.8em;
+            margin-bottom: 20px;
+        }
+        h2 {
+            font-size: 1.5em;
+        }
+        h3 {
+            font-size: 1.3em;
+            color: #D2691E;
+            margin-top: 25px;
+            margin-bottom: 15px;
+        }
+
+        /* En-tête de la page principale */
+        .header {
+            margin-bottom: 25px;
+        }
+
+        /* Boutons d'action généraux (Stats, Générer notes) */
+        .action-buttons-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+            align-items: center;
+        }
+        .action-buttons-container button {
+            background-color: #4682B4;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: bold;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            width: 100%;
+            max-width: 300px;
+            box-sizing: border-box;
+        }
+        .action-buttons-container button:hover {
+            background-color: #36648B;
+            transform: scale(1.02);
+        }
+        .action-buttons-container button.generate-button {
+            background-color: #8A2BE2;
+        }
+        .action-buttons-container button.generate-button:hover {
+            background-color: #6A1BA0;
+        }
+        .action-buttons-container button.manage-button {
+            background-color: #20B2AA;
+        }
+        .action-buttons-container button.manage-button:hover {
+            background-color: #1A8B83;
+        }
+        .action-buttons-container button.sort-button {
+            background-color: #FFD700;
+            color: #333;
+        }
+        .action-buttons-container button.sort-button:hover {
+            background-color: #FFC400;
+        }
+        .action-buttons-container button.sort-button.active {
+            background-color: #DAA520;
+            color: white;
+        }
+
+        /* Conteneur des filtres */
+        .filters-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+        .filters-container label {
+            font-weight: bold;
+            color: #555;
+            margin-right: 5px;
+        }
+        .filters-container select,
+        .filters-container button {
+            padding: 10px 15px;
+            border-radius: 10px;
+            border: 2px solid #8B0000;
+            background-color: #FFF0F5;
+            font-size: 1em;
+            font-family: 'Comic Sans MS', cursive, sans-serif;
+            color: #333;
+            cursor: pointer;
+            width: 100%;
+            max-width: 250px;
+            box-sizing: border-box;
+        }
+        .filters-container button {
+            background-color: #FF8C00;
+            color: white;
+            border: none;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+        .filters-container button:hover {
+            background-color: #CC7000;
+            transform: scale(1.02);
+        }
+
+        /* Liste des attractions (grille responsive) */
+        .attraction-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 25px;
+        }
+
+        /* Carte d'attraction */
+        .attraction-card {
+            background-color: #FFF;
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            text-align: left;
+            position: relative;
+            border: 3px solid #ADD8E6;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .attraction-card:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 12px 25px rgba(0,0,0,0.15);
+        }
+        .attraction-card h3 {
+            color: #008080;
+            margin-top: 0;
+            font-size: 1.3em;
+            margin-bottom: 10px;
+        }
+        .attraction-card p {
+            margin: 3px 0;
+            font-size: 0.9em;
+        }
+        .attraction-card p strong {
+            color: #555;
+        }
+        .attraction-card .category {
+            display: inline-block;
+            background-color: #ADD8E6;
+            color: #333;
+            padding: 4px 8px;
+            border-radius: 10px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-top: 8px;
+        }
+        .attraction-card .category.Action { background-color: #FF6347; color: white; }
+        .attraction-card .category.Famille { background-color: #FFD700; }
+        .attraction-card .category.Enfant { background-color: #98FB98; }
+        .attraction-card .average-on-card {
+            font-size: 1em;
+            font-weight: bold;
+            color: #D2691E;
+            margin-top: 10px;
+            margin-bottom: 5px;
+        }
+        .park-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+        .park-indicator.europa-park {
+            background-color: #00008B;
+        }
+        .park-indicator.rulantica {
+            background-color: #40E0D0;
+        }
+        .attraction-card button.rate-attraction-button {
+            background-color: #FF4500;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.95em;
+            font-weight: bold;
+            margin-top: 15px;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .attraction-card button.rate-attraction-button:hover {
+            background-color: #E03E00;
+            transform: scale(1.02);
+        }
+        .attraction-card .card-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .attraction-card .card-actions button {
+            flex-grow: 1;
+            margin-top: 0;
+        }
+        .attraction-card .card-actions button.edit-button {
+            background-color: #FFD700;
+            color: #333;
+        }
+        .attraction-card .card-actions button.edit-button:hover {
+            background-color: #FFC400;
+        }
+        .attraction-card .card-actions button.delete-button {
+            background-color: #DC143C;
+        }
+        .attraction-card .card-actions button.delete-button:hover {
+            background-color: #B01030;
+        }
+
+        /* Page de détail de l'attraction */
+        .detail-page {
+            display: none;
+            text-align: center;
+        }
+        .detail-page h2 {
+            font-size: 1.8em;
+            margin-bottom: 15px;
+        }
+        .detail-page .info-block {
+            background-color: #F8F8FF;
+            padding: 15px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .detail-page .info-block p {
+            font-size: 1em;
+            margin: 8px 0;
+        }
+        .detail-page .image-zone {
+            margin-top: 20px;
+            margin-bottom: 20px;
+            background-color: #F0F8FF;
+            padding: 15px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .detail-page .image-zone img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            display: block;
+            margin: 0 auto;
+        }
+        .detail-page .rating-section {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+        }
+        .detail-page .rating-section h3 {
+            font-size: 1.2em;
+            margin-bottom: 0;
+        }
+        .detail-page .rating-section select {
+            padding: 10px 15px;
+            border-radius: 10px;
+            border: 2px solid #008080;
+            background-color: #E0FFFF;
+            font-size: 1em;
+            font-family: 'Comic Sans MS', cursive, sans-serif;
+            color: #333;
+            cursor: pointer;
+            width: 100%;
+            max-width: 250px;
+            box-sizing: border-box;
+        }
+
+        /* Boutons des membres de la famille pour la notation */
+        .family-rater-buttons {
+            display: flex;
+            flex-wrap: nowrap; /* MODIFICATION : force les boutons à rester sur une seule ligne */
+            justify-content: center;
+            gap: 10px;
+            margin-top: 15px;
+            width: 100%;
+        }
+        .family-rater-buttons button {
+            color: white;
+            border: none;
+            padding: 12px 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: bold;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            flex-grow: 1;
+            flex-shrink: 1; /* Permet aux boutons de rétrécir si nécessaire */
+            min-width: 60px; /* Empêche les boutons de devenir trop petits */
+            box-sizing: border-box;
+        }
+        .family-rater-buttons button.papa { background-color: #4169E1; }
+        .family-rater-buttons button.papa:hover { background-color: #3558B6; }
+        .family-rater-buttons button.maman { background-color: #FF8C00; }
+        .family-rater-buttons button.maman:hover { background-color: #CC7000; }
+        .family-rater-buttons button.ceylian { background-color: #DC143C; }
+        .family-rater-buttons button.ceylian:hover { background-color: #B01030; }
+        .family-rater-buttons button.cloelie { background-color: #32CD32; }
+        .family-rater-buttons button.cloelie:hover { background-color: #28A728; }
+
+        .detail-page .scores-display {
+            margin-top: 25px;
+            background-color: #FFFACD;
+            padding: 15px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .detail-page .scores-display h3 {
+            color: #D2691E;
+            margin-bottom: 10px;
+            font-size: 1.3em;
+        }
+        .detail-page .scores-display ul {
+            list-style: none;
+            padding: 0;
+        }
+        .detail-page .scores-display ul li {
+            background-color: #FFE4B5;
+            margin: 6px 0;
+            padding: 8px 12px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            font-size: 0.95em;
+        }
+        .detail-page .scores-display ul li .score-value {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .detail-page .scores-display ul li .score-papa { color: #4169E1; }
+        .detail-page .scores-display ul li .score-maman { color: #FF8C00; }
+        .detail-page .scores-display ul li .score-ceylian { color: #DC143C; }
+        .detail-page .scores-display ul li .score-cloelie { color: #32CD32; }
+        .delete-rating-icon {
+            cursor: pointer;
+            color: #DC143C;
+            font-size: 1.2em;
+            line-height: 1;
+            padding: 2px;
+            opacity: 0.7;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+        .delete-rating-icon:hover {
+            opacity: 1;
+            transform: scale(1.2);
+        }
+        .detail-page .scores-display .average-score {
+            font-size: 1.3em;
+            color: #8B0000;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px dashed #D2691E;
+        }
+        .back-button {
+            background-color: #FFA07A;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            margin-top: 25px;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            width: 100%;
+            max-width: 300px;
+            box-sizing: border-box;
+        }
+        .back-button:hover {
+            background-color: #FF7F50;
+            transform: scale(1.02);
+        }
+
+        /* Page des statistiques */
+        .stats-page {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        .stats-page .stats-section {
+            background-color: #F8F8FF;
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .stats-page .stats-section select {
+            padding: 10px 15px;
+            border-radius: 10px;
+            border: 2px solid #4682B4;
+            background-color: #E6E6FA;
+            font-size: 1em;
+            font-family: 'Comic Sans MS', cursive, sans-serif;
+            color: #333;
+            cursor: pointer;
+            width: 100%;
+            max-width: 250px;
+            box-sizing: border-box;
+            margin-bottom: 15px;
+        }
+        .stats-page .stats-list {
+            list-style: none;
+            padding: 0;
+        }
+        .stats-page .stats-list li {
+            background-color: #E0FFFF;
+            margin: 8px 0;
+            padding: 10px 15px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            font-size: 0.95em;
+        }
+        .stats-page .stats-list li .score-papa { color: #4169E1; }
+        .stats-page .stats-list li .score-maman { color: #FF8C00; }
+        .stats-page .stats-list li .score-ceylian { color: #DC143C; }
+        .stats-page .stats-list li .score-cloelie { color: #32CD32; }
+        .stats-page .average-display {
+            font-size: 1.1em;
+            color: #8B0000;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        /* Page de gestion des attractions */
+        .manage-attractions-page {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        .manage-attractions-page .form-section {
+            background-color: #F8F8FF;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .manage-attractions-page .form-section label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+            text-align: left;
+        }
+        .manage-attractions-page .form-section input[type="text"],
+        .manage-attractions-page .form-section select {
+            width: calc(100% - 20px);
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 2px solid #ADD8E6;
+            border-radius: 8px;
+            font-family: 'Comic Sans MS', cursive, sans-serif;
+            font-size: 1em;
+            box-sizing: border-box;
+        }
+        .manage-attractions-page .form-section button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            margin-top: 10px;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            width: 100%;
+            max-width: 250px;
+            box-sizing: border-box;
+        }
+        .manage-attractions-page .form-section button:hover {
+            background-color: #45a049;
+            transform: scale(1.02);
+        }
+        .manage-attractions-page .current-attractions-list {
+            margin-top: 30px;
+        }
+        .manage-attractions-page .current-attractions-list ul {
+            list-style: none;
+            padding: 0;
+        }
+        .manage-attractions-page .current-attractions-list li {
+            background-color: #FFE4B5;
+            margin: 10px 0;
+            padding: 12px 15px;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .manage-attractions-page .current-attractions-list li .attraction-info {
+            font-weight: bold;
+            color: #333;
+            text-align: left;
+            width: 100%;
+        }
+        .manage-attractions-page .current-attractions-list li .attraction-actions {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            justify-content: flex-end;
+        }
+        .manage-attractions-page .current-attractions-list li .attraction-actions button {
+            padding: 8px 12px;
+            font-size: 0.85em;
+            border-radius: 8px;
+            margin-top: 0;
+            width: auto;
+            max-width: none;
+        }
+        .manage-attractions-page .current-attractions-list li .attraction-actions button.edit-button {
+            background-color: #FFD700;
+            color: #333;
+        }
+        .manage-attractions-page .current-attractions-list li .attraction-actions button.edit-button:hover {
+            background-color: #FFC400;
+        }
+        .manage-attractions-page .current-attractions-list li .attraction-actions button.delete-button {
+            background-color: #DC143C;
+        }
+        .manage-attractions-page .current-attractions-list li .attraction-actions button.delete-button:hover {
+            background-color: #B01030;
+        }
+
+        /* Modale de confirmation (cachée par défaut) */
+        .custom-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            pointer-events: none;
+        }
+        .custom-modal-overlay.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .custom-modal-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+            text-align: center;
+            max-width: 90vw;
+            width: 400px;
+            font-family: 'Comic Sans MS', cursive, sans-serif;
+            color: #333;
+        }
+        .custom-modal-content h4 {
+            margin-top: 0;
+            color: #8B0000;
+            font-size: 1.4em;
+        }
+        .custom-modal-content p {
+            margin-bottom: 25px;
+            font-size: 1.1em;
+        }
+        .custom-modal-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+        .custom-modal-buttons button {
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            border: none;
+        }
+        .custom-modal-buttons button.confirm-yes {
+            background-color: #DC143C;
+            color: white;
+        }
+        .custom-modal-buttons button.confirm-yes:hover {
+            background-color: #B01030;
+        }
+        .custom-modal-buttons button.confirm-no {
+            background-color: #ADD8E6;
+            color: #333;
+        }
+        .custom-modal-buttons button.confirm-no:hover {
+            background-color: #87CEEB;
+        }
+
+        /* Modale de mot de passe */
+        .password-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2100;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            pointer-events: none;
+        }
+        .password-modal-overlay.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .password-modal-content {
+            background-color: #FFF;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            max-width: 90vw;
+            width: 350px;
+            font-family: 'Comic Sans MS', cursive, sans-serif;
+            color: #333;
+        }
+        .password-modal-content h4 {
+            margin-top: 0;
+            color: #4682B4;
+            font-size: 1.5em;
+            margin-bottom: 20px;
+        }
+        .password-modal-content input[type="password"] {
+            width: calc(100% - 20px);
+            padding: 12px;
+            margin-bottom: 20px;
+            border: 2px solid #4682B4;
+            border-radius: 10px;
+            font-size: 1.1em;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        .password-modal-content .password-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+        .password-modal-content .password-buttons button {
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            border: none;
+        }
+        .password-modal-content .password-buttons button.password-ok {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .password-modal-content .password-buttons button.password-ok:hover {
+            background-color: #45a049;
+        }
+        .password-modal-content .password-buttons button.password-cancel {
+            background-color: #FFD700;
+            color: #333;
+        }
+        .password-modal-content .password-buttons button.password-cancel:hover {
+            background-color: #FFC400;
+        }
+
+        /* Animation des confettis */
+        .confetti-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 1000;
+        }
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: var(--color);
+            border-radius: 50%;
+            animation: confetti-fall var(--duration) linear forwards;
+            opacity: 0;
+        }
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(0) rotateZ(0deg) scale(1);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(100vh) rotateZ(720deg) scale(0.5);
+                opacity: 0;
+            }
+        }
+
+        /* Loading Overlay */
+        #loadingOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 3000;
+            font-size: 1.8em;
+            color: #8B0000;
+            font-weight: bold;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .spinner {
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #FF69B4;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Media Queries pour ajustements sur écrans plus grands (tablette/desktop) */
+        @media (min-width: 768px) {
+            .header {
+                flex-direction: row;
+            }
+            .filters-container {
+                flex-direction: row;
+                justify-content: center;
+            }
+            .filters-container select,
+            .filters-container button {
+                width: auto;
+                max-width: none;
+            }
+            .action-buttons-container {
+                flex-direction: row;
+                justify-content: center;
+            }
+            .action-buttons-container button {
+                width: auto;
+                max-width: none;
+            }
+            .detail-page .rating-section {
+                flex-direction: row;
+                justify-content: center;
+            }
+            .detail-page .rating-section select {
+                width: auto;
+                max-width: none;
+            }
+            .family-rater-buttons {
+                width: auto;
+            }
+            .family-rater-buttons button {
+                max-width: none;
+            }
+            .back-button {
+                width: auto;
+                max-width: none;
+            }
+            h1 {
+                font-size: 2.5em;
+            }
+            h2 {
+                font-size: 2em;
+            }
+            .manage-attractions-page .current-attractions-list li {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .manage-attractions-page .current-attractions-list li .attraction-actions {
+                width: auto;
+            }
+        }
+
+    </style>
+</head>
+<body>
+    <div class="confetti-container" id="confetti-container"></div>
+
+    <div id="customConfirmModal" class="custom-modal-overlay">
+        <div class="custom-modal-content">
+            <h4 id="modalTitle">Confirmer l'action</h4>
+            <p id="modalMessage">Êtes-vous sûr de vouloir effectuer cette action ?</p>
+            <div class="custom-modal-buttons">
+                <button class="confirm-yes" id="modalConfirmYes">Oui</button>
+                <button class="confirm-no" id="modalConfirmNo">Non</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="passwordModal" class="password-modal-overlay">
+        <div class="password-modal-content">
+            <h4>Accès sécurisé</h4>
+            <p>Veuillez entrer le mot de passe pour gérer les attractions :</p>
+            <input type="password" id="passwordInput" placeholder="Mot de passe">
+            <div class="password-buttons">
+                <button class="password-ok" id="passwordOkButton">OK</button>
+                <button class="password-cancel" id="passwordCancelButton">Annuler</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="loadingOverlay">
+        <div class="spinner"></div>
+        <p>Chargement des données...</p>
+    </div>
+
+    <div class="container">
+        <div id="main-list-page">
+            <div class="header">
+                <h1>🎉 Notes des Attractions 🎉</h1>
+            </div>
+            <h2>Choisissez une attraction à noter :</h2>
+            <div class="filters-container">
+                <div>
+                    <label for="zoneFilter">Filtrer par zone :</label>
+                    <select id="zoneFilter">
+                        <option value="all">Toutes les zones</option>
+                    </select>
+                </div>
+                <button id="showUnratedButton">Voir les non notées</button>
+                <button id="sortByRatingButton" class="sort-button">Trier par note</button>
+            </div>
+            <div class="attraction-list" id="attractionList"></div>
+            <div class="action-buttons-container">
+                <button class="stats-button" onclick="showStatsPage()">Voir les Statistiques</button>
+                <button class="generate-button" onclick="generateTestRatings()">Générer des notes de test</button>
+                <button class="manage-button" onclick="requestManageAttractionsAccess()">Gérer les attractions</button>
+            </div>
+        </div>
+
+        <div id="attraction-detail-page" class="detail-page">
+            <h2 id="detail-attraction-name"></h2>
+            <div class="info-block">
+                <p><strong>Parc :</strong> <span id="detail-attraction-park"></span></p>
+                <p><strong>Zone thématique :</strong> <span id="detail-attraction-zone"></span></p>
+                <p><strong>Catégorie :</strong> <span id="detail-attraction-category"></span></p>
+                <p><a id="detail-attraction-url" href="#" target="_blank" style="color: #008080; text-decoration: none; font-weight: bold;">Voir sur le site officiel</a></p>
+            </div>
+            <div class="image-zone">
+                <h3>Image de l'attraction :</h3>
+                <img id="detail-attraction-image" src="" alt="Image de l'attraction">
+            </div>
+            <div class="rating-section">
+                <h3>Donnez votre note :</h3>
+                <select id="ratingSelect">
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="6">6</option>
+                    <option value="7">7</option>
+                    <option value="8">8</option>
+                    <option value="9">9</option>
+                    <option value="10">10</option>
+                </select>
+                <div class="family-rater-buttons" id="familyRaterButtons"></div>
+            </div>
+            <div class="scores-display">
+                <h3>Notes de la famille pour cette attraction :</h3>
+                <ul id="familyRatingsList"></ul>
+                <p class="average-score">Moyenne : <span id="averageRating">N/A</span></p>
+            </div>
+            <button class="back-button" onclick="showMainListPage()">Retour aux attractions</button>
+        </div>
+
+        <div id="stats-page" class="stats-page">
+            <h1>📊 Statistiques des Notes 📊</h1>
+            <div class="stats-section">
+                <h3>Notes de chaque personne :</h3>
+                <select id="personSelectForStats">
+                    <option value="">Sélectionnez une personne</option>
+                    <option value="Papa">Papa</option>
+                    <option value="Maman">Maman</option>
+                    <option value="Ceylian">Ceylian</option>
+                    <option value="Cloélie">Cloélie</option>
+                </select>
+                <ul id="individualRatingsList" class="stats-list"></ul>
+            </div>
+            <div class="stats-section">
+                <h3>Moyenne par personne :</h3>
+                <ul id="averageByPersonList" class="stats-list"></ul>
+            </div>
+            <div class="stats-section">
+                <h3>Moyenne par zone thématique :</h3>
+                <ul id="averageByZoneList" class="stats-list"></ul>
+            </div>
+            <div class="stats-section">
+                <h3>Moyenne par catégorie :</h3>
+                <ul id="averageByCategoryList" class="stats-list"></ul>
+            </div>
+            <button class="back-button" onclick="showMainListPage()">Retour aux attractions</button>
+        </div>
+
+        <div id="manage-attractions-page" class="manage-attractions-page">
+            <h1>🛠️ Gérer les Attractions 🛠️</h1>
+            <div class="form-section">
+                <h3 id="attractionFormTitle">Ajouter une nouvelle attraction</h3>
+                <input type="hidden" id="attractionIdToEdit">
+                <label for="attractionName">Nom de l'attraction :</label>
+                <input type="text" id="attractionName" placeholder="Ex: Silver Star">
+                <label for="attractionPark">Parc :</label>
+                <select id="attractionPark">
+                    <option value="Europa-Park">Europa-Park</option>
+                    <option value="Rulantica">Rulantica</option>
+                </select>
+                <label for="attractionZone">Zone thématique :</label>
+                <input type="text" id="attractionZone" placeholder="Ex: France">
+                <label for="attractionCategory">Catégorie :</label>
+                <select id="attractionCategory">
+                    <option value="Action">Action</option>
+                    <option value="Famille">Famille</option>
+                    <option value="Enfant">Enfant</option>
+                </select>
+                <label for="attractionUrl">URL (optionnel) :</label>
+                <input type="text" id="attractionUrl" placeholder="URL du site officiel">
+                <label for="attractionImageUrl">URL de l'image (optionnel) :</label>
+                <input type="text" id="attractionImageUrl" placeholder="URL de l'image de l'attraction">
+                <button id="saveAttractionButton" onclick="saveAttraction()">Ajouter l'attraction</button>
+            </div>
+            <div class="current-attractions-list">
+                <h3>Attractions actuelles :</h3>
+                <ul id="currentManagedAttractionsList"></ul>
+            </div>
+            <button class="back-button" onclick="showMainListPage()">Retour aux attractions</button>
+        </div>
+    </div>
+</body>
+</html>
