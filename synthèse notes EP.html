@@ -1,0 +1,1591 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rapport de Notes Europa-Park & Rulantica - Séjour 2025</title>
+    <!-- Favicon SVG intégré en base64 -->
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>">
+    <style>
+        /* Styles généraux pour le corps de la page */
+        body {
+            font-family: 'Comic Sans MS', cursive, sans-serif;
+            background: linear-gradient(135deg, #FFD700, #FF69B4);
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Conteneur principal du rapport */
+        .report-container {
+            background-color: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 1000px;
+            width: 100%;
+            margin: 20px auto;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+            box-sizing: border-box;
+            position: relative; /* Nécessaire pour le positionnement du bouton de menu */
+            z-index: 1; /* S'assure qu'il est au-dessus de l'overlay */
+        }
+
+        /* Titres */
+        h1, h2, h3, h4 {
+            color: #8B0000; /* DarkRed */
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 { font-size: 2.5em; }
+        h2 { font-size: 2em; color: #D2691E; /* Chocolate */ border-bottom: 2px solid #D2691E; padding-bottom: 10px; margin-top: 40px;}
+        h3 { font-size: 1.5em; color: #008080; /* Teal */ margin-top: 30px; margin-bottom: 15px;}
+        h4 { font-size: 1.2em; color: #A52A2A; /* Brown, closer to the new menu */ margin-top: 20px; margin-bottom: 10px;}
+
+        /* Styles pour le menu de navigation latéral */
+        .side-navigation-menu {
+            height: 100%;
+            width: 0; /* Initialement masqué */
+            position: fixed;
+            z-index: 1000; /* Au-dessus de tout */
+            top: 0;
+            left: 0;
+            background-color: #A52A2A; /* Nouveau: Brown pour le fond du menu */
+            overflow-x: hidden;
+            transition: 0.5s; /* Transition fluide pour l'ouverture/fermeture */
+            padding-top: 60px;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .side-navigation-menu.open {
+            width: 250px; /* Largeur du menu ouvert */
+        }
+
+        .side-navigation-menu ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            width: 100%;
+        }
+
+        .side-navigation-menu li {
+            width: 100%;
+            text-align: center;
+        }
+
+        .side-navigation-menu li a {
+            padding: 15px 25px;
+            text-decoration: none;
+            font-size: 1.2em;
+            color: white; /* Texte blanc */
+            display: block;
+            transition: 0.3s;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .side-navigation-menu li a:hover {
+            background-color: #B22222; /* Nouveau: FireBrick au survol */
+            transform: scale(1.02);
+        }
+
+        .side-navigation-menu .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 25px;
+            font-size: 36px;
+            margin-left: 50px;
+            color: white; /* Blanc pour le bouton de fermeture */
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        /* Overlay pour le fond assombri */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 999; /* Juste en dessous du menu */
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s ease;
+        }
+
+        .overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Bouton Hamburger */
+        .open-menu-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            font-size: 30px;
+            cursor: pointer;
+            color: #8B0000; /* DarkRed, correspond aux titres */
+            background-color: rgba(255,255,255,0.8);
+            border: none;
+            border-radius: 10px;
+            padding: 5px 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 1001; /* Au-dessus de tout */
+            transition: background-color 0.3s ease;
+        }
+        .open-menu-btn:hover {
+            background-color: rgba(255,255,255,1);
+        }
+
+        /* Sections */
+        .section {
+            background-color: #F8F8FF;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            text-align: left;
+        }
+
+        /* Styles pour les sections repliables */
+        .collapsible-header {
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            /* Pas de border-bottom ici pour éviter le double trait avec le h3/h4 */
+        }
+
+        .collapsible-content {
+            display: none; /* Initiallement masqué */
+        }
+
+        .collapsible-content.expanded {
+            display: block; /* Affiche le contenu */
+        }
+
+        .collapse-icon {
+            transition: transform 0.3s ease;
+            font-size: 0.8em; /* Taille de l'icône */
+            margin-left: 10px;
+        }
+
+        .collapsible-header.expanded .collapse-icon {
+            transform: rotate(90deg); /* Tourne l'icône quand déplié */
+        }
+
+        /* Groupes d'attractions (par parc, puis par zone) */
+        .park-group, .zone-group {
+            margin-bottom: 25px;
+            padding: 15px;
+            border-radius: 12px;
+            background-color: #F0F8FF; /* AliceBlue, très clair */
+            box-shadow: inset 0 1px 5px rgba(0,0,0,0.1);
+        }
+        .park-group h3, .zone-group h4 {
+            color: #A52A2A; /* Brown, nouveau, plus cohérent */
+            margin-top: 0;
+            margin-bottom: 15px;
+            border-bottom: 1px dashed #A9A9A9; /* DarkGray */
+            padding-bottom: 8px;
+        }
+        .park-group.europa-park-bg { background-color: #F5EEED; } /* Très léger beige rosé */
+        .park-group.rulantica-bg { background-color: #EBF5F0; } /* Très léger vert bleuâtre */
+
+        /* Style pour les stats de parc et de zone intégrées */
+        .park-stats, .zone-stats {
+            font-size: 0.75em; /* Plus petit que le titre */
+            color: #666; /* Couleur plus discrète */
+            margin-left: 10px;
+            font-weight: normal; /* Pas en gras */
+        }
+
+
+        /* Liste des attractions détaillées */
+        .attraction-detail-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-top: 20px;
+        }
+        .attraction-detail-card {
+            background-color: #FFF;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+            border: 3px solid #FFDAB9; /* PeachPuff, plus chaud */
+            display: flex;
+            flex-direction: column;
+        }
+        /* Style pour les attractions non notées */
+        .attraction-detail-card.unrated-card {
+            opacity: 0.7;
+            background-color: #F5F5F5; /* Gris très clair */
+            border-color: #D3D3D3; /* Gris clair pour la bordure */
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05); /* Ombre plus légère */
+        }
+        .attraction-detail-card.unrated-card .ratings-summary {
+            font-style: italic;
+            color: #888; /* Texte gris pour le résumé des notes */
+        }
+
+
+        .attraction-detail-card h4 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #8B0000;
+        }
+        .attraction-detail-card p {
+            margin: 5px 0;
+            font-size: 0.95em;
+        }
+        .attraction-detail-card p strong {
+            color: #555;
+        }
+        .attraction-detail-card .category {
+            display: inline-block;
+            background-color: #FFDAB9; /* PeachPuff */
+            color: #333;
+            padding: 4px 8px;
+            border-radius: 10px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-top: 8px;
+        }
+        .attraction-detail-card .category.Action { background-color: #FF6347; color: white; }
+        .attraction-detail-card .category.Famille { background-color: #FFD700; }
+        .attraction-detail-card .category.Enfant { background-color: #98FB98; }
+
+        .attraction-detail-card .ratings-summary {
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 1px dashed #ccc;
+        }
+        .attraction-detail-card .ratings-summary ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .attraction-detail-card .ratings-summary li {
+            font-size: 0.9em;
+            margin-bottom: 3px;
+        }
+        /* Styles pour les scores individuels dans les cartes d'attraction */
+        .attraction-detail-card .ratings-summary li .score-value {
+            font-weight: bold;
+        }
+        .attraction-detail-card .ratings-summary li .score-papa { color: #4169E1; } /* RoyalBlue */
+        .attraction-detail-card .ratings-summary li .score-maman { color: #FF8C00; } /* DarkOrange */
+        .attraction-detail-card .ratings-summary li .score-ceylian { color: #DC143C; } /* Crimson */
+        .attraction-detail-card .ratings-summary li .score-cloelie { color: #000000; } /* Noir */
+
+        .attraction-detail-card .ratings-summary .average-score {
+            font-weight: bold;
+            color: #D2691E;
+            margin-top: 10px;
+        }
+        .park-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+        .park-indicator.europa-park { background-color: #8B0000; } /* DarkRed */
+        .park-indicator.rulantica { background-color: #FF69B4; } /* HotPink */
+
+        /* Styles pour les listes de statistiques */
+        .stats-list {
+            list-style: none;
+            padding: 0;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+        }
+        .stats-list li {
+            background-color: #FFF0F5; /* LavenderBlush, très clair */
+            margin: 5px 0;
+            padding: 10px 15px;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 1em;
+            flex: 1 1 calc(50% - 15px); /* Deux colonnes sur desktop, une sur mobile */
+            max-width: calc(50% - 15px);
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            text-align: left;
+        }
+        .stats-list li span {
+            display: block;
+            margin-top: 5px;
+            font-size: 0.9em;
+            color: #666;
+        }
+        .stats-list li .score-value {
+            font-size: 1.1em;
+            color: #8B0000;
+            margin-top: 0;
+        }
+        /* Mise à jour des couleurs des scores */
+        .score-papa { color: #4169E1; } /* RoyalBlue */
+        .score-maman { color: #FF8C00; } /* DarkOrange */
+        .score-ceylian { color: #DC143C; } /* Crimson */
+        .score-cloelie { color: #000000; } /* Noir */
+
+        /* Top & Flop */
+        .top-flop-list {
+            list-style: none;
+            padding: 0;
+        }
+        .top-flop-list li {
+            background-color: #FFE4B5;
+            margin: 8px 0;
+            padding: 10px 15px;
+            border-radius: 10px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .top-flop-list li.top {
+            background-color: #98FB98; /* Vert clair pour le top */
+        }
+        .top-flop-list li.flop {
+            background-color: #FFB6C1; /* Rose clair pour le flop */
+        }
+        .top-flop-list .attraction-name {
+            flex-grow: 1;
+            text-align: left;
+        }
+        .top-flop-list .score {
+            font-size: 1.1em;
+            color: #8B0000;
+        }
+
+        /* Liste des attractions non notées */
+        .unrated-attractions-list {
+            list-style: disc; /* Utilise des puces */
+            padding-left: 20px;
+            margin-top: 15px;
+            text-align: left;
+        }
+        .unrated-attractions-list li {
+            margin-bottom: 5px;
+            font-size: 0.95em;
+            color: #555;
+        }
+        .unrated-attractions-list li strong {
+            color: #8B0000;
+        }
+        .unrated-attractions-list li .category-tag {
+            display: inline-block;
+            background-color: #E0E0E0; /* Gris clair par défaut */
+            color: #555; /* Texte gris foncé par défaut */
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-size: 0.7em;
+            font-weight: normal;
+            margin-left: 8px;
+        }
+        /* Styles spécifiques pour les catégories dans la liste des non notées */
+        .unrated-attractions-list li .category-tag.Action { background-color: #FF6347; color: white; }
+        .unrated-attractions-list li .category-tag.Famille { background-color: #FFD700; color: #333; } /* Garde le texte sombre pour le jaune */
+        .unrated-attractions-list li .category-tag.Enfant { background-color: #98FB98; color: #333; } /* Garde le texte sombre pour le vert clair */
+
+
+        /* Nouveaux styles pour les statistiques individuelles par personne */
+        .person-stats-group {
+            margin-top: 30px;
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        /* Application des couleurs spécifiques de chaque personne */
+        .person-stats-group.papa-group {
+            background-color: rgba(65, 105, 225, 0.1); /* RoyalBlue léger */
+            border: 1px solid #4169E1;
+        }
+        .person-stats-group.maman-group {
+            background-color: rgba(255, 140, 0, 0.1); /* DarkOrange léger */
+            border: 1px solid #FF8C00;
+        }
+        .person-stats-group.ceylian-group {
+            background-color: rgba(220, 20, 60, 0.1); /* Crimson léger */
+            border: 1px solid #DC143C;
+        }
+        .person-stats-group.cloelie-group {
+            background-color: rgba(0, 0, 0, 0.1); /* Noir léger */
+            border: 1px solid #000000;
+        }
+
+
+        .person-stats-group .collapsible-header {
+            cursor: pointer; /* Ajouté pour s'assurer que le curseur indique la cliquabilité */
+            font-size: 1.3em;
+            /* Couleur du titre principal de la personne est définie par le score-value */
+            border-bottom: none; /* Pas de bordure ici */
+            padding-bottom: 0;
+        }
+        .person-stats-group .collapsible-header .score-value {
+            font-size: 1em; /* Plus petit pour la moyenne générale de la personne */
+            margin-left: 10px;
+        }
+        .person-stats-group .collapsible-header .rated-count {
+            font-size: 0.8em; /* Taille pour le nombre d'attractions notées */
+            color: #666;
+            margin-left: 5px;
+            font-weight: normal;
+        }
+
+        .person-detail-section {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px dashed #FF8C00; /* Tirets orange */
+        }
+        .person-detail-section h4 {
+            color: #FF8C00; /* DarkOrange */
+            font-size: 1.1em;
+            margin-bottom: 10px;
+        }
+        /* Style pour les titres des sections dépliables à l'intérieur des stats perso */
+        .person-detail-section .collapsible-header {
+            font-size: 1em; /* Plus petit que le h4 parent */
+            color: #A52A2A; /* Reprend la couleur des h4 */
+            padding: 0; /* Réinitialise le padding */
+            margin-bottom: 10px; /* Ajoute un peu de marge en bas */
+        }
+        .person-detail-section .collapsible-header .collapse-icon {
+            font-size: 0.7em; /* Icône plus petite pour les sous-sections */
+        }
+
+
+        /* Style pour les listes de stats par parc/zone dans les stats perso (horizontal) */
+        .person-park-stats-list {
+            list-style: none;
+            padding: 0;
+            display: flex; /* Horizontal layout */
+            flex-wrap: wrap;
+            justify-content: center; /* Center items */
+            gap: 15px; /* Spacing between items */
+            margin-top: 10px;
+        }
+
+        .person-park-stats-list li {
+            background-color: #FFEBCD; /* BlanchedAlmond */
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.9em;
+            font-weight: normal;
+            display: flex;
+            flex-direction: column; /* Content inside list item remains vertical */
+            align-items: center; /* Center text within the list item */
+            flex: 0 1 auto; /* Allow items to size based on content, but can shrink */
+            min-width: 120px; /* Give a minimum width to avoid squishing */
+            box-sizing: border-box;
+            text-align: center; /* Ensure text is centered */
+        }
+        .person-park-stats-list li .score-value {
+            font-size: 1em;
+            margin-top: 5px;
+        }
+
+        /* Style pour la liste des notes détaillées par personne */
+        .person-attraction-notes-list {
+            list-style: none;
+            padding: 0;
+            margin-top: 10px;
+        }
+
+        .person-attraction-notes-list li {
+            background-color: #F8F8FF; /* AliceBlue */
+            margin-bottom: 8px;
+            padding: 10px 15px;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.95em;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .person-attraction-notes-list li .attraction-info {
+            flex-grow: 1;
+            text-align: left;
+        }
+
+        .person-attraction-notes-list li .attraction-score {
+            font-weight: bold;
+            color: #8B0000; /* DarkRed */
+            margin-left: 15px;
+        }
+
+        /* Nouveau style pour la barre de recherche dans les notes détaillées */
+        .search-container {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .search-container input[type="text"] {
+            width: calc(100% - 40px);
+            max-width: 400px;
+            padding: 10px 15px;
+            border: 2px solid #D2691E;
+            border-radius: 10px;
+            font-size: 1em;
+            font-family: 'Comic Sans MS', cursive, sans-serif;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .search-container input[type="text"]:focus {
+            border-color: #FF8C00;
+            box-shadow: 0 0 8px rgba(255, 140, 0, 0.3);
+        }
+
+        /* Style pour le message de chargement */
+        #loadingMessage {
+            font-size: 1.2em;
+            color: #D2691E;
+            margin-top: 50px;
+            font-weight: bold;
+        }
+
+
+        /* Bouton de téléchargement */
+        .download-button-container {
+            margin-top: 40px;
+            margin-bottom: 20px;
+        }
+        .download-button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-size: 1.2em;
+            font-weight: bold;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .download-button:hover {
+            background-color: #45a049;
+            transform: scale(1.03);
+        }
+
+        /* Pied de page */
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #ccc;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        /* Media Queries pour la responsivité */
+        @media (max-width: 768px) {
+            .report-container {
+                padding: 15px;
+            }
+            h1 { font-size: 2em; }
+            h2 { font-size: 1.6em; }
+            h3 { font-size: 1.3em; }
+            h4 { font-size: 1.1em; }
+            /* Le menu latéral et le bouton hamburger sont conçus pour le mobile */
+            .open-menu-btn {
+                font-size: 24px; /* Plus petit sur mobile */
+                padding: 3px 8px;
+            }
+            .side-navigation-menu.open {
+                width: 200px; /* Largeur réduite sur mobile */
+            }
+            .attraction-detail-list {
+                grid-template-columns: 1fr; /* Une seule colonne sur mobile */
+            }
+            .stats-list li, .person-park-stats-list li {
+                flex: 1 1 100%; /* Une seule colonne sur mobile */
+                max-width: 100%;
+            }
+            .search-container input[type="text"] {
+                width: calc(100% - 20px); /* Ajustement pour le mobile */
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Bouton pour ouvrir le menu latéral -->
+    <button class="open-menu-btn" id="openMenuBtn">☰</button>
+
+    <!-- Overlay pour assombrir le contenu principal -->
+    <div id="main-overlay" class="overlay"></div>
+
+    <!-- Menu de navigation latéral -->
+    <div id="mySidenav" class="side-navigation-menu">
+        <a href="javascript:void(0)" class="close-btn" id="closeMenuBtn">&times;</a>
+        <ul>
+            <li><a href="#resume-global" class="nav-link">Résumé Global</a></li>
+            <li><a href="#notes-detaillees" class="nav-link">Notes Détaillées</a></li>
+            <li><a href="#stats-categorie" class="nav-link">Stats par Catégorie</a></li>
+            <li><a href="#non-notees" class="nav-link">Attractions Non Notées</a></li>
+            <li><a href="#top-flop" class="nav-link">Top & Flop</a></li>
+            <li><a href="#stats-personne" class="nav-link">Stats par Personne</a></li>
+        </ul>
+    </div>
+
+    <div class="report-container">
+        <h1>🎉 Rapport de Notes Europa-Park & Rulantica 🎉</h1>
+        <p>Ce rapport récapitule toutes les notes attribuées aux attractions lors de votre séjour.</p>
+
+        <!-- Message de chargement -->
+        <p id="loadingMessage">Chargement des données du rapport...</p>
+
+        <!-- Contenu du rapport généré dynamiquement -->
+        <div id="reportContent" style="display: none;">
+            <!-- Le contenu du rapport (résumé, notes détaillées, stats, etc.) sera inséré ici par JavaScript -->
+
+            <h2 id="resume-global">📊 Résumé Global 📊</h2>
+            <div class="section">
+                <p><strong>Total d'attractions notées :</strong> <span id="totalAttractionsRated">0</span>/<span id="totalAttractionsAvailable">0</span></p>
+                <p><strong>Note moyenne générale :</strong> <span id="overallAverageScore">N/A</span>/10</p>
+            </div>
+
+            <h2 id="notes-detaillees">🎢 Notes Détaillées par Attraction 🎢</h2>
+            <div class="section">
+                <!-- Barre de recherche pour les attractions détaillées -->
+                <div class="search-container">
+                    <input type="text" id="attractionSearchDetailed" placeholder="Rechercher une attraction...">
+                </div>
+
+                <!-- Conteneurs pour les attractions d'Europa-Park et Rulantica -->
+                <div id="europaParkAttractionsContainer">
+                    <!-- Les groupes de parcs et de zones seront générés ici -->
+                </div>
+
+                <div id="rulanticaAttractionsContainer">
+                    <!-- Les groupes de parcs et de zones seront générés ici -->
+                </div>
+                <p id="noAttractionsFound" style="display: none; margin-top: 30px; font-style: italic; color: #666;">Aucune attraction ne correspond à votre recherche.</p>
+            </div>
+
+            <h2 id="stats-categorie">🏷️ Statistiques par Catégorie 🏷️</h2>
+            <div class="section">
+                <ul class="stats-list" id="categoryStatsList">
+                    <!-- Les statistiques par catégorie seront insérées ici -->
+                </ul>
+            </div>
+
+            <h2 id="non-notees">📝 Attractions Non Notées 📝</h2>
+            <div class="section">
+                <p>Voici la liste des attractions que votre famille n'a pas encore notées :</p>
+                <ul class="unrated-attractions-list" id="unratedAttractionsList">
+                    <!-- Les attractions non notées seront insérées ici -->
+                </ul>
+            </div>
+
+            <h2 id="top-flop">🏆 Top & Flop des Attractions 👎</h2>
+            <div class="section">
+                <h3>Top 3 des attractions (Moyenne) :</h3>
+                <ul class="top-flop-list" id="topAttractionsList">
+                    <!-- Le top 3 sera inséré ici -->
+                </ul>
+
+                <h3>Flop 3 des attractions (Moyenne) :</h3>
+                <ul class="top-flop-list" id="flopAttractionsList">
+                    <!-- Le flop 3 sera inséré ici -->
+                </ul>
+            </div>
+
+            <h2 id="stats-personne">👨‍👩‍👧‍👦 Statistiques par Personne 👨‍👩‍👧‍👦</h2>
+            <div class="section" id="personStatsSection">
+                <!-- Les statistiques par personne seront insérées ici -->
+            </div>
+        </div>
+
+        <div class="download-button-container">
+            <button class="download-button" id="downloadReportButton">Télécharger le Rapport Complet</button>
+        </div>
+
+        <div class="footer">
+            <p>Rapport généré le <span id="reportGenerationDate"></span></p>
+            <p>Application de notes Europa-Park & Rulantica</p>
+        </div>
+    </div>
+
+    <script type="module">
+        // Importations Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Variables globales pour Firebase
+        let app;
+        let db;
+        let auth;
+        let userId = 'anonymous'; // Un ID par défaut pour les requêtes initiales
+
+        // Données du rapport stockées globalement après récupération
+        let allAttractionsData = [];
+        let allRatingsData = [];
+        let attractionsLoaded = false;
+        let ratingsLoaded = false;
+
+        // Fonction utilitaire pour échapper les caractères HTML spéciaux
+        function escapeHtml(unsafe) {
+            if (typeof unsafe !== 'string') {
+                return unsafe;
+            }
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;")
+                .replace(/`/g, "&#96;")
+                .replace(/\n/g, "&#10;") // Ajouté: Échappe les caractères de nouvelle ligne
+                .replace(/\r/g, "&#13;"); // Ajouté: Échappe les caractères de retour chariot
+        }
+
+
+        // --- Fonctions d'initialisation et de récupération des données ---
+
+        async function fetchAndRenderReport() {
+            const loadingMessage = document.getElementById('loadingMessage');
+            const reportContent = document.getElementById('reportContent');
+            loadingMessage.style.display = 'block'; // Afficher le message de chargement
+            reportContent.style.display = 'none'; // Masquer le contenu du rapport
+
+            try {
+                // Initialisation de Firebase si ce n'est pas déjà fait
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                let firebaseConfig = {};
+
+                // Utilise la configuration Firebase fournie par l'utilisateur
+                firebaseConfig = {
+                    apiKey: "AIzaSyBteaEF6X5B-NmKBaTj05PsHhEkpGm4WR0",
+                    authDomain: "notes-europapark-861c5.firebaseapp.com",
+                    projectId: "notes-europapark-861c5",
+                    storageBucket: "notes-europapark-861c5.firebasestorage.app",
+                    messagingSenderId: "143494361989",
+                    appId: "1:143494361989:web:ac191fdb04c73967aa8aec"
+                };
+                console.warn("Configuration Firebase non fournie par l'environnement Canvas. Utilisation de la configuration fournie par l'utilisateur.");
+
+
+                if (!app) { // Initialiser seulement si l'app n'est pas déjà initialisée
+                    app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+
+                    // Authentification anonyme pour accéder aux données publiques
+                    await signInAnonymously(auth);
+
+                    // Mettre à jour l'ID utilisateur une fois authentifié
+                    onAuthStateChanged(auth, (user) => {
+                        if (user) {
+                            userId = user.uid;
+                            console.log("Utilisateur authentifié. UID:", userId);
+                        } else {
+                            console.log("Utilisateur non authentifié. Accès aux données publiques.");
+                        }
+                        setupFirestoreListeners(); // Configurer les écouteurs après l'authentification
+                    });
+                } else {
+                    // Si Firebase est déjà initialisé, vérifier l'état d'authentification
+                    if (auth.currentUser) {
+                        userId = auth.currentUser.uid;
+                        setupFirestoreListeners();
+                    } else {
+                        console.log("Firebase déjà initialisé, mais utilisateur non authentifié. Tentative de connexion anonyme pour l'accès aux données publiques.");
+                        await signInAnonymously(auth); // Tenter de se connecter anonymement
+                        // onAuthStateChanged gérera l'appel à setupFirestoreListeners
+                    }
+                }
+
+            } catch (error) {
+                console.error("Erreur lors de l'initialisation ou de l'authentification Firebase:", error);
+                loadingMessage.textContent = "Erreur lors du chargement des données. Veuillez réessayer.";
+                loadingMessage.style.color = "red";
+            }
+        }
+
+        /**
+         * Configure les écouteurs onSnapshot pour les collections attractions et ratings.
+         */
+        function setupFirestoreListeners() {
+            if (!db) {
+                console.error("Firestore non défini. Impossible de configurer les écouteurs.");
+                document.getElementById('loadingMessage').textContent = "Erreur: Impossible de charger les données (Firestore non prêt).";
+                document.getElementById('loadingMessage').style.color = "red";
+                return;
+            }
+
+            const appId = 'default-app-id'; // Utilise 'default-app-id' comme confirmé par l'utilisateur
+
+            // Listener pour les Attractions
+            const attractionsCollectionRef = collection(db, `artifacts/${appId}/public/data/attractions`);
+            onSnapshot(query(attractionsCollectionRef), (snapshot) => {
+                allAttractionsData = [];
+                snapshot.forEach(doc => {
+                    allAttractionsData.push({ id: doc.id, ...doc.data() });
+                });
+                console.log("Données d'attractions récupérées:", allAttractionsData);
+                attractionsLoaded = true;
+                checkAndRenderReport();
+            }, (error) => {
+                console.error("Erreur lors de la récupération des attractions:", error);
+                document.getElementById('loadingMessage').textContent = "Erreur lors du chargement des attractions: " + error.message;
+                document.getElementById('loadingMessage').style.color = "red";
+            });
+
+            // Listener pour les Notes (Ratings)
+            const ratingsCollectionRef = collection(db, `artifacts/${appId}/public/data/ratings`);
+            onSnapshot(query(ratingsCollectionRef), (snapshot) => {
+                allRatingsData = [];
+                snapshot.forEach(doc => {
+                    // Assumons que l'ID du document de rating est l'ID de l'attraction correspondante
+                    allRatingsData.push({ id: doc.id, ...doc.data() });
+                });
+                console.log("Données de notes récupérées:", allRatingsData);
+                ratingsLoaded = true;
+                checkAndRenderReport();
+            }, (error) => {
+                console.error("Erreur lors de la récupération des notes:", error);
+                document.getElementById('loadingMessage').textContent = "Erreur lors du chargement des notes: " + error.message;
+                document.getElementById('loadingMessage').style.color = "red";
+            });
+        }
+
+        /**
+         * Vérifie si les deux jeux de données (attractions et notes) sont chargés
+         * et rend le rapport si c'est le cas.
+         */
+        function checkAndRenderReport() {
+            if (attractionsLoaded && ratingsLoaded) {
+                // Fusionner les notes dans les attractions
+                const mergedAttractions = allAttractionsData.map(attraction => {
+                    // Trouver le document de note correspondant à l'ID de l'attraction
+                    const rating = allRatingsData.find(r => r.id === attraction.id);
+                    
+                    // Initialiser un objet pour les notes de l'attraction
+                    let notesForAttraction = {};
+
+                    // Si un document de note est trouvé, extraire les scores individuels
+                    if (rating) {
+                        // Assumons que les scores sont des champs directs du document de rating
+                        // comme { Papa: 8, Maman: 9, ... }
+                        const persons = ['Papa', 'Maman', 'Ceylian', 'Cloélie'];
+                        persons.forEach(person => {
+                            if (rating[person] !== undefined) {
+                                notesForAttraction[person] = rating[person];
+                            }
+                        });
+                    }
+
+                    return {
+                        ...attraction,
+                        notes: notesForAttraction // Assigner l'objet de notes construit
+                    };
+                });
+
+                renderReport(mergedAttractions);
+                document.getElementById('loadingMessage').style.display = 'none';
+                document.getElementById('reportContent').style.display = 'block';
+            }
+        }
+
+        /**
+         * Fonction principale pour rendre le rapport avec les données fusionnées.
+         * @param {Array} attractions - Tableau des attractions avec leurs données, incluant maintenant le champ 'notes'.
+         */
+        function renderReport(attractions) {
+            // Mise à jour de la date de génération
+            document.getElementById('reportGenerationDate').textContent = new Date().toLocaleDateString('fr-FR', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+
+            // --- Résumé Global ---
+            const totalRated = attractions.filter(att => att.notes && Object.keys(att.notes).length > 0).length;
+            const totalAvailable = attractions.length;
+            document.getElementById('totalAttractionsRated').textContent = totalRated;
+            document.getElementById('totalAttractionsAvailable').textContent = totalAvailable;
+
+            let sumOfAverages = 0;
+            let countOfAverages = 0;
+            attractions.forEach(att => {
+                if (att.notes && Object.keys(att.notes).length > 0) { // S'assurer qu'il y a des notes
+                    const personNotes = Object.values(att.notes).map(note => parseFloat(note)).filter(n => !isNaN(n));
+                    if (personNotes.length > 0) {
+                        const average = personNotes.reduce((a, b) => a + b, 0) / personNotes.length;
+                        sumOfAverages += average;
+                        countOfAverages++;
+                    }
+                }
+            });
+            const overallAverage = countOfAverages > 0 ? (sumOfAverages / countOfAverages).toFixed(1) : 'N/A';
+            document.getElementById('overallAverageScore').textContent = overallAverage;
+
+
+            // --- Rendu des notes détaillées par attraction ---
+            renderDetailedAttractionsContent(attractions); // DÉCOMMENTÉ
+
+            // --- Rendu des statistiques par catégorie ---
+            renderCategoryStats(attractions);
+
+            // --- Rendu des attractions non notées ---
+            renderUnratedAttractions(attractions);
+
+            // --- Rendu du Top & Flop ---
+            renderTopFlopAttractions(attractions);
+
+            // --- Rendu des statistiques par personne ---
+            renderPersonStats(attractions);
+
+
+            // Une fois le rapport rendu, initialiser les écouteurs pour les sections repliables et la recherche
+            initializeCollapsibleSections();
+            // Attacher l'écouteur d'événements à la barre de recherche
+            const searchInput = document.getElementById('attractionSearchDetailed');
+            if (searchInput) {
+                searchInput.addEventListener('input', filterDetailedAttractions);
+            }
+
+            // Attacher les écouteurs pour le menu latéral (maintenant décommentés)
+            document.getElementById('openMenuBtn').addEventListener('click', openNav);
+            document.getElementById('main-overlay').addEventListener('click', closeNav);
+            document.getElementById('closeMenuBtn').addEventListener('click', closeNav);
+            // Attacher les écouteurs aux liens de navigation pour fermer le menu
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('click', closeNav);
+            });
+
+            // Attacher l'écouteur pour le bouton de téléchargement
+            document.getElementById('downloadReportButton').addEventListener('click', () => {
+                console.log('Cette fonctionnalité de téléchargement sera implémentée plus tard !');
+                // Vous pouvez remplacer ceci par un affichage de message personnalisé ou une logique de téléchargement réelle.
+                // Par exemple, créer une modale:
+                /*
+                const messageBox = document.createElement('div');
+                messageBox.style.cssText = `
+                    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                    background-color: white; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.5);
+                    z-index: 10000; text-align: center;
+                `;
+                messageBox.innerHTML = `
+                    <p>Cette fonctionnalité de téléchargement sera implémentée plus tard !</p>
+                    <button onclick="this.parentNode.remove()">Fermer</button>
+                `;
+                document.body.appendChild(messageBox);
+                */
+            });
+        }
+
+        /**
+         * Génère et insère le contenu des notes détaillées par attraction.
+         * @param {Array} attractions - Tableau des attractions avec leurs données.
+         */
+        function renderDetailedAttractionsContent(attractions) {
+            const europaParkContainer = document.getElementById('europaParkAttractionsContainer');
+            const rulanticaContainer = document.getElementById('rulanticaAttractionsContainer');
+            europaParkContainer.innerHTML = ''; // Vider les conteneurs existants
+            rulanticaContainer.innerHTML = '';
+
+            // Groupement des attractions par parc, puis par zone
+            const parks = {}; // { "Europa-Park": { "France": [], "Islande": [] }, "Rulantica": { "Rangnakor": [] } }
+
+            // Trier les attractions avant de les grouper pour un affichage cohérent
+            const sortedAttractions = [...attractions].
+            sort((a, b) => {
+                const parkCompare = a.park.localeCompare(b.park);
+                if (parkCompare !== 0) return parkCompare;
+                return a.zone.localeCompare(b.zone);
+            });
+
+
+            sortedAttractions.forEach(attraction => {
+                if (!attraction.park || !attraction.zone || !attraction.name) {
+                    console.warn("Attraction with missing 'park', 'zone', or 'name' skipped:", attraction);
+                    return; // Skip attractions that don't have essential properties
+                }
+                if (!parks[attraction.park]) {
+                    parks[attraction.park] = {};
+                }
+                if (!parks[attraction.park][attraction.zone]) {
+                    parks[attraction.park][attraction.zone] = [];
+                }
+                parks[attraction.park][attraction.zone].push(attraction);
+            });
+
+            // Génération du HTML pour chaque parc et zone
+            for (const parkName in parks) {
+                const parkGroupDiv = document.createElement('div');
+                parkGroupDiv.classList.add('park-group');
+                parkGroupDiv.classList.add(parkName === 'Europa-Park' ? 'europa-park-bg' : 'rulantica-bg');
+
+                // Calcul des stats du parc
+                const parkAttractions = Object.values(parks[parkName]).flat();
+                const parkRatedCount = parkAttractions.filter(att => att.notes && Object.keys(att.notes).length > 0).length;
+                const parkTotalCount = parkAttractions.length;
+
+                let parkSumOfAverages = 0;
+                let parkCountOfAverages = 0;
+                parkAttractions.forEach(att => {
+                    if (att.notes && Object.keys(att.notes).length > 0) {
+                        const personNotes = Object.values(att.notes).map(note => parseFloat(note)).filter(n => !isNaN(n));
+                        if (personNotes.length > 0) {
+                            const average = personNotes.reduce((a, b) => a + b, 0) / personNotes.length;
+                            parkSumOfAverages += average;
+                            parkCountOfAverages++;
+                        }
+                    }
+                });
+                const parkAverage = parkCountOfAverages > 0 ? (parkSumOfAverages / parkCountOfAverages).toFixed(1) : 'N/A';
+
+
+                parkGroupDiv.innerHTML = `
+                    <h3 class="collapsible-header">
+                        ${escapeHtml(parkName)} ${parkName === 'Europa-Park' ? '🔵' : '💧'} <span class="park-stats">Moyenne: ${parkAverage}/10 (${parkRatedCount} attractions notées sur ${parkTotalCount} total)</span> <span class="collapse-icon">&#9658;</span>
+                    </h3>
+                    <div class="collapsible-content">
+                        <!-- Zones will be appended here -->
+                    </div>
+                `;
+                const parkContentDiv = parkGroupDiv.querySelector('.collapsible-content');
+
+                // Tri des zones par nom
+                const sortedZones = Object.keys(parks[parkName]).sort();
+
+                sortedZones.forEach(zoneName => {
+                    const zoneGroupDiv = document.createElement('div');
+                    zoneGroupDiv.classList.add('zone-group');
+
+                    // Calcul des stats de la zone
+                    const zoneAttractions = parks[parkName][zoneName];
+                    const zoneRatedCount = zoneAttractions.filter(att => att.notes && Object.keys(att.notes).length > 0).length;
+                    const zoneTotalCount = zoneAttractions.length;
+                    const zoneUnratedCount = zoneAttractions.filter(att => !att.notes || Object.keys(att.notes).length === 0).length;
+
+
+                    let zoneSumOfAverages = 0;
+                    let zoneCountOfAverages = 0;
+                    zoneAttractions.forEach(att => {
+                        if (att.notes && Object.keys(att.notes).length > 0) {
+                            const personNotes = Object.values(att.notes).map(note => parseFloat(note)).filter(n => !isNaN(n));
+                            if (personNotes.length > 0) {
+                                const average = personNotes.reduce((a, b) => a + b, 0) / personNotes.length;
+                                zoneSumOfAverages += average;
+                                zoneCountOfAverages++;
+                            }
+                        }
+                    });
+                    const zoneAverage = zoneCountOfAverages > 0 ? (zoneSumOfAverages / zoneCountOfAverages).toFixed(1) : 'N/A';
+
+
+                    zoneGroupDiv.innerHTML = `
+                        <h4 class="collapsible-header">
+                            ${escapeHtml(zoneName)} <span class="zone-stats">Moyenne: ${zoneAverage}/10 (${zoneRatedCount} notes au total) - ${zoneUnratedCount} non notée(s)</span> <span class="collapse-icon">&#9658;</span>
+                        </h4>
+                        <div class="collapsible-content">
+                            <div class="attraction-detail-list">
+                                <!-- Attraction cards will be appended here -->
+                            </div>
+                        </div>
+                    `;
+                    const attractionListDiv = zoneGroupDiv.querySelector('.attraction-detail-list');
+
+                    // Tri des attractions à l'intérieur de la zone par nom
+                    const sortedZoneAttractions = [...parks[parkName][zoneName]].sort((a, b) => a.name.localeCompare(b.name));
+
+                    sortedZoneAttractions.forEach(attraction => {
+                        const attractionCardDiv = document.createElement('div');
+                        attractionCardDiv.classList.add('attraction-detail-card');
+                        // Utilise escapeHtml pour le data-attraction-name
+                        attractionCardDiv.dataset.attractionName = escapeHtml(attraction.name); // Pour la recherche
+
+                        // DÉCOMMENTÉ: Ajout de la classe 'unrated-card' si l'attraction n'est pas notée
+                        if (!attraction.notes || Object.keys(attraction.notes).length === 0) {
+                            attractionCardDiv.classList.add('unrated-card');
+                        }
+
+                        // Calcul de la moyenne des notes de l'attraction
+                        let averageScore = 'N/A';
+                        const notes = attraction.notes || {};
+                        const personNotes = Object.values(notes).map(note => parseFloat(note)).filter(n => !isNaN(n));
+                        if (personNotes.length > 0) {
+                            averageScore = (personNotes.reduce((a, b) => a + b, 0) / personNotes.length).toFixed(1);
+                        }
+
+                        // Génération des notes individuelles
+                        let individualNotesHtml = '';
+                        const personColors = {
+                            'Papa': 'score-papa',
+                            'Maman': 'score-maman',
+                            'Ceylian': 'score-ceylian',
+                            'Cloélie': 'score-cloelie'
+                        };
+                        // Assurez-vous d'itérer sur les noms de personnes pour garantir l'ordre et la couleur
+                        const persons = ['Papa', 'Maman', 'Ceylian', 'Cloélie'];
+                        persons.forEach(person => {
+                            if (notes[person] !== undefined) { // Utiliser undefined pour vérifier si la note existe
+                                individualNotesHtml += `<li>${escapeHtml(person)} : <span class="score-value ${personColors[person]}">${escapeHtml(notes[person].toString())}/10</span></li>`;
+                            }
+                        });
+
+                        // Message si l'attraction n'est pas notée
+                        if (individualNotesHtml === '') {
+                            individualNotesHtml = '<li><em>Pas encore notée.</em></li>';
+                            averageScore = 'N/A'; // S'assurer que la moyenne est N/A si aucune note
+                        }
+
+
+                        attractionCardDiv.innerHTML = `
+                            <h4>${escapeHtml(attraction.name)}</h4>
+                            <p><strong>Parc :</strong> ${escapeHtml(attraction.park)}</p>
+                            <p><strong>Zone :</strong> ${escapeHtml(attraction.zone)}</p>
+                            <p><strong>Catégorie :</strong> <span class="category ${escapeHtml(attraction.category)}">${escapeHtml(attraction.category)}</span></p>
+                            ${attraction.url ? `<p><a href="${escapeHtml(attraction.url)}" target="_blank" style="color: #008080; text-decoration: none; font-weight: bold;">Voir sur le site officiel</a></p>` : ''}
+                            ${attraction.imageUrl ? `<img src="${escapeHtml(attraction.imageUrl)}" alt="Image ${escapeHtml(attraction.name)}" onerror="this.style.display='none';" style="max-width: 100%; height: auto; border-radius: 8px; margin-top: 10px;">` : `<img src="https://placehold.co/400x250/cccccc/333333?text=Image+Non+Dispo" alt="Image non disponible" onerror="this.style.display='none';" style="max-width: 100%; height: auto; border-radius: 8px; margin-top: 10px;">`}
+                            <div class="ratings-summary">
+                                <strong>Notes individuelles :</strong>
+                                <ul>
+                                    ${individualNotesHtml}
+                                </ul>
+                                <p class="average-score">Moyenne : ${averageScore}/10</p>
+                            </div>
+                        `;
+                        attractionListDiv.appendChild(attractionCardDiv);
+                    });
+                    parkContentDiv.appendChild(zoneGroupDiv);
+                });
+
+                if (parkName === 'Europa-Park') {
+                    europaParkContainer.appendChild(parkGroupDiv);
+                } else if (parkName === 'Rulantica') {
+                    rulanticaContainer.appendChild(parkGroupDiv);
+                }
+            }
+        }
+
+        /**
+         * Génère et insère les statistiques par catégorie.
+         * @param {Array} attractions - Tableau des attractions avec leurs données.
+         */
+        function renderCategoryStats(attractions) {
+            const categoryStats = {}; // { "Action": { totalScore: 0, count: 0, ratedAttractions: Set(), totalAttractions: Set() } }
+            const categoryStatsList = document.getElementById('categoryStatsList');
+            categoryStatsList.innerHTML = ''; // Vider le contenu existant
+
+            attractions.forEach(att => {
+                if (!categoryStats[att.category]) {
+                    categoryStats[att.category] = { totalScore: 0, count: 0, ratedAttractions: new Set(), totalAttractions: new Set() };
+                }
+                categoryStats[att.category].totalAttractions.add(att.id); // Compte toutes les attractions de la catégorie
+
+                if (att.notes && Object.keys(att.notes).length > 0) {
+                    const personNotes = Object.values(att.notes).map(note => parseFloat(note)).filter(n => !isNaN(n));
+                    if (personNotes.length > 0) {
+                        const averageAttraction = personNotes.reduce((a, b) => a + b, 0) / personNotes.length;
+                        categoryStats[att.category].totalScore += averageAttraction;
+                        categoryStats[att.category].count++;
+                        categoryStats[att.category].ratedAttractions.add(att.id); // Compte les attractions notées
+                    }
+                }
+            });
+
+            for (const category in categoryStats) {
+                const stats = categoryStats[category];
+                const average = stats.count > 0 ? (stats.totalScore / stats.count).toFixed(1) : 'N/A';
+                const totalAttractionsInCategory = stats.totalAttractions.size;
+                const ratedAttractionsInCategory = stats.ratedAttractions.size;
+                const unratedAttractionsInCategory = totalAttractionsInCategory - ratedAttractionsInCategory;
+
+                const listItem = document.createElement('li');
+                listItem.innerHTML = `
+                    ${escapeHtml(category)} : <span class="score-value">${average}/10</span>
+                    <span>(${ratedAttractionsInCategory} attractions notées sur ${totalAttractionsInCategory} total) - ${unratedAttractionsInCategory} non notée(s)</span>
+                `;
+                categoryStatsList.appendChild(listItem);
+            }
+        }
+
+        /**
+         * Génère et insère la liste des attractions non notées.
+         * @param {Array} attractions - Tableau des attractions avec leurs données.
+         */
+        function renderUnratedAttractions(attractions) {
+            const unratedAttractionsList = document.getElementById('unratedAttractionsList');
+            unratedAttractionsList.innerHTML = ''; // Vider le contenu existant
+
+            let unrated = attractions.filter(att => !att.notes || Object.keys(att.notes).length === 0);
+
+            // Tri des attractions non notées
+            unrated.sort((a, b) => {
+                const parkCompare = a.park.localeCompare(b.park);
+                if (parkCompare !== 0) return parkCompare;
+                return a.zone.localeCompare(b.zone);
+            });
+
+            if (unrated.length === 0) {
+                unratedAttractionsList.innerHTML = '<li>Toutes les attractions ont été notées ! 🎉</li>';
+            } else {
+                unrated.forEach(att => {
+                    const listItem = document.createElement('li');
+                    // Ajout de la catégorie avec la classe pour le style
+                    listItem.innerHTML = `<strong>${escapeHtml(att.park)}</strong> - ${escapeHtml(att.zone)} : ${escapeHtml(att.name)} <span class="category-tag ${escapeHtml(att.category)}">${escapeHtml(att.category)}</span>`;
+                    unratedAttractionsList.appendChild(listItem);
+                });
+            }
+        }
+
+        /**
+         * Génère et insère le Top & Flop des attractions.
+         * @param {Array} attractions - Tableau des attractions avec leurs données.
+         */
+        function renderTopFlopAttractions(attractions) {
+            const topAttractionsList = document.getElementById('topAttractionsList');
+            const flopAttractionsList = document.getElementById('flopAttractionsList');
+            topAttractionsList.innerHTML = '';
+            flopAttractionsList.innerHTML = '';
+
+            const ratedAttractions = attractions.filter(att => att.notes && Object.keys(att.notes).length > 0);
+
+            // Calculer la moyenne pour chaque attraction notée
+            const attractionsWithAverages = ratedAttractions.map(att => {
+                const personNotes = Object.values(att.notes).map(note => parseFloat(note)).filter(n => !isNaN(n));
+                const average = personNotes.length > 0 ? personNotes.reduce((a, b) => a + b, 0) / personNotes.length : 0;
+                return { ...att, averageScore: average };
+            });
+
+            // Trier pour le Top (descendant)
+            const sortedTop = [...attractionsWithAverages].sort((a, b) => b.averageScore - a.averageScore);
+            sortedTop.slice(0, 3).forEach(att => {
+                const listItem = document.createElement('li');
+                listItem.classList.add('top');
+                const parkEmoji = att.park === 'Europa-Park' ? '🔵' : '💧';
+                listItem.innerHTML = `
+                    <span class="attraction-name">${parkEmoji} ${escapeHtml(att.name)}</span>
+                    <span class="score">${att.averageScore.toFixed(1)}/10</span>
+                `;
+                topAttractionsList.appendChild(listItem);
+            });
+
+            // Trier pour le Flop (ascendant)
+            const sortedFlop = [...attractionsWithAverages].sort((a, b) => a.averageScore - b.averageScore);
+            sortedFlop.slice(0, 3).forEach(att => {
+                const listItem = document.createElement('li');
+                listItem.classList.add('flop');
+                const parkEmoji = att.park === 'Europa-Park' ? '🔵' : '💧';
+                listItem.innerHTML = `
+                    <span class="attraction-name">${parkEmoji} ${escapeHtml(att.name)}</span>
+                    <span class="score">${att.averageScore.toFixed(1)}/10</span>
+                `;
+                flopAttractionsList.appendChild(listItem);
+            });
+
+            if (ratedAttractions.length === 0) {
+                topAttractionsList.innerHTML = '<li>Aucune attraction notée pour le moment.</li>';
+                flopAttractionsList.innerHTML = '<li>Aucune attraction notée pour le moment.</li>';
+            }
+        }
+
+        /**
+         * Génère et insère les statistiques par personne.
+         * @param {Array} attractions - Tableau des attractions avec leurs données.
+         */
+        function renderPersonStats(attractions) {
+            const personStatsSection = document.getElementById('personStatsSection');
+            personStatsSection.innerHTML = ''; // Vider le contenu existant
+
+            const persons = ['Papa', 'Maman', 'Ceylian', 'Cloélie'];
+            const personColors = {
+                'Papa': 'score-papa',
+                'Maman': 'score-maman',
+                'Ceylian': 'score-ceylian',
+                'Cloélie': 'score-cloelie'
+            };
+            const personGroupClasses = {
+                'Papa': 'papa-group',
+                'Maman': 'maman-group',
+                'Ceylian': 'ceylian-group',
+                'Cloélie': 'cloelie-group'
+            };
+
+            persons.forEach(personName => {
+                const personAttractions = attractions.filter(att => att.notes && att.notes[personName] !== undefined);
+
+                // Calcul de la moyenne personnelle
+                let totalPersonScore = 0;
+                let countPersonNotes = 0;
+                personAttractions.forEach(att => {
+                    const score = parseFloat(att.notes[personName]);
+                    if (!isNaN(score)) {
+                        totalPersonScore += score;
+                        countPersonNotes++;
+                    }
+                });
+                const personAverage = countPersonNotes > 0 ? (totalPersonScore / countPersonNotes).toFixed(1) : 'N/A';
+
+                // Top & Flop personnels
+                const sortedPersonAttractions = [...personAttractions].sort((a, b) => {
+                    const scoreA = parseFloat(a.notes[personName]);
+                    const scoreB = parseFloat(b.notes[personName]);
+                    return scoreB - scoreA; // Descendant pour le top
+                });
+
+                let topPersonalHtml = '';
+                sortedPersonAttractions.slice(0, 3).forEach(att => {
+                    const parkEmoji = att.park === 'Europa-Park' ? '🔵' : '💧';
+                    topPersonalHtml += `<li class="top"><span class="attraction-name">${parkEmoji} ${escapeHtml(att.name)}</span> <span class="score">${escapeHtml(att.notes[personName].toString())}/10</span></li>`;
+                });
+                if (topPersonalHtml === '') topPersonalHtml = '<li>Aucune attraction notée.</li>';
+
+
+                let flopPersonalHtml = '';
+                [...sortedPersonAttractions].reverse().slice(0, 3).forEach(att => { // Inverser pour le flop
+                    const parkEmoji = att.park === 'Europa-Park' ? '🔵' : '💧';
+                    flopPersonalHtml += `<li class="flop"><span class="attraction-name">${parkEmoji} ${escapeHtml(att.name)}</span> <span class="score">${escapeHtml(att.notes[personName].toString())}/10</span></li>`;
+                });
+                if (flopPersonalHtml === '') flopPersonalHtml = '<li>Aucune attraction notée.</li>';
+
+
+                // Moyenne par parc pour la personne
+                const personParkAverages = {};
+                personAttractions.forEach(att => {
+                    if (!personParkAverages[att.park]) {
+                        personParkAverages[att.park] = { total: 0, count: 0 };
+                    }
+                    const score = parseFloat(att.notes[personName]);
+                    if (!isNaN(score)) {
+                        personParkAverages[att.park].total += score;
+                        personParkAverages[att.park].count++;
+                    }
+                });
+
+                let parkAveragesHtml = '';
+                for (const park in personParkAverages) {
+                    const avg = personParkAverages[park].count > 0 ? (personParkAverages[park].total / personParkAverages[park].count).toFixed(1) : 'N/A';
+                    const parkEmoji = park === 'Europa-Park' ? '🔵' : '💧';
+                    parkAveragesHtml += `<li>${parkEmoji} ${escapeHtml(park)}: <span class="score-value ${personColors[personName]}">${avg}/10</span></li>`;
+                }
+                if (parkAveragesHtml === '') parkAveragesHtml = '<li>Aucune note par parc.</li>';
+
+
+                // Moyenne par zone pour la personne
+                const personZoneAverages = {};
+                personAttractions.forEach(att => {
+                    if (!personZoneAverages[att.zone]) {
+                        personZoneAverages[att.zone] = { total: 0, count: 0 };
+                    }
+                    const score = parseFloat(att.notes[personName]);
+                    if (!isNaN(score)) {
+                        personZoneAverages[att.zone].total += score;
+                        personZoneAverages[att.zone].count++;
+                    }
+                });
+
+                let zoneAveragesHtml = '';
+                for (const zone in personZoneAverages) {
+                    const avg = personZoneAverages[zone].count > 0 ? (personZoneAverages[zone].total / personZoneAverages[zone].count).toFixed(1) : 'N/A';
+                    // Trouver l'emoji du parc associé à la zone
+                    const parkForZone = attractions.find(att => att.zone === zone);
+                    const parkEmoji = parkForZone ? (parkForZone.park === 'Europa-Park' ? '🔵' : '💧') : '';
+                    zoneAveragesHtml += `<li>${parkEmoji} ${escapeHtml(zone)}: <span class="score-value ${personColors[personName]}">${avg}/10</span></li>`;
+                }
+                if (zoneAveragesHtml === '') zoneAveragesHtml = '<li>Aucune note par zone.</li>';
+
+
+                // Notes détaillées par personne
+                let detailedNotesHtml = '';
+                personAttractions.forEach(att => {
+                    const parkNameForDisplay = att.park;
+                    const parkEmoji = parkNameForDisplay === 'Europa-Park' ? '🔵' : '💧';
+                    detailedNotesHtml += `<li><span class="attraction-info">${parkEmoji} ${escapeHtml(att.name)} (${escapeHtml(parkNameForDisplay)})</span> <span class="attraction-score">${escapeHtml(att.notes[personName].toString())}/10</span></li>`;
+                });
+                if (detailedNotesHtml === '') detailedNotesHtml = '<li>Aucune note détaillée.</li>';
+
+
+                const personGroupDiv = document.createElement('div');
+                personGroupDiv.classList.add('person-stats-group', personGroupClasses[personName]);
+                personGroupDiv.innerHTML = `
+                    <h3 class="collapsible-header">
+                        ${escapeHtml(personName)} <span class="score-value ${personColors[personName]}">${personAverage}/10</span> <span class="rated-count">(${countPersonNotes} attractions notées)</span> <span class="collapse-icon">&#9658;</span>
+                    </h3>
+                    <div class="collapsible-content">
+                        <div class="person-detail-section">
+                            <h4>Top & Flop personnels de ${escapeHtml(personName)}</h4>
+                            <ul class="top-flop-list">
+                                ${topPersonalHtml}
+                                ${flopPersonalHtml}
+                            </ul>
+                        </div>
+                        <div class="person-detail-section">
+                            <h4>Moyenne de ${escapeHtml(personName)} par Parc</h4>
+                            <ul class="person-park-stats-list">
+                                ${parkAveragesHtml}
+                            </ul>
+                        </div>
+                        <div class="person-detail-section">
+                            <h4 class="collapsible-header">
+                                Moyenne de ${escapeHtml(personName)} par Zone <span class="collapse-icon">&#9658;</span>
+                            </h4>
+                            <div class="collapsible-content">
+                                <ul class="stats-list small-stats-list">
+                                    ${zoneAveragesHtml}
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="person-detail-section">
+                            <h4 class="collapsible-header">
+                                Notes détaillées de ${escapeHtml(personName)} <span class="collapse-icon">&#9658;</span>
+                            </h4>
+                            <div class="collapsible-content">
+                                <ul class="person-attraction-notes-list">
+                                    ${detailedNotesHtml}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                personStatsSection.appendChild(personGroupDiv);
+            });
+        }
+
+
+        // --- Fonctions existantes adaptées ---
+
+        /* Fonction pour ouvrir le menu latéral */
+        function openNav() {
+            document.getElementById("mySidenav").classList.add("open");
+            document.getElementById("main-overlay").classList.add("active");
+        }
+
+        /* Fonction pour fermer le menu latéral */
+        function closeNav() {
+            document.getElementById("mySidenav").classList.remove("open");
+            document.getElementById("main-overlay").classList.remove("active");
+        }
+
+        /* Fonction pour plier/déplier les sections */
+        function toggleCollapse(headerElement) {
+            const content = headerElement.nextElementSibling; // Le div .collapsible-content juste après le header
+            const icon = headerElement.querySelector('.collapse-icon');
+
+            if (content.classList.contains('expanded')) {
+                // Si la section est dépliée, la replier
+                content.classList.remove('expanded');
+                icon.innerHTML = '&#9658;'; // Flèche droite
+            } else {
+                // Si la section est repliée, la déplier
+                content.classList.add('expanded');
+                icon.innerHTML = '&#9660;'; // Flèche bas
+            }
+        }
+
+        // Fonction pour initialiser l'état replié de toutes les sections et attacher les écouteurs
+        function initializeCollapsibleSections() {
+            const collapsibleHeaders = document.querySelectorAll('.collapsible-header');
+            collapsibleHeaders.forEach(header => {
+                // S'assurer qu'il n'y a pas déjà un écouteur pour éviter les duplications
+                header.removeEventListener('click', toggleCollapseHandler);
+                header.addEventListener('click', toggleCollapseHandler);
+
+                const content = header.nextElementSibling;
+                if (content) { // S'assurer que le contenu existe
+                    content.classList.remove('expanded'); // S'assurer que la classe expanded n'est pas là
+                }
+                const icon = header.querySelector('.collapse-icon');
+                if (icon) {
+                    icon.innerHTML = '&#9658;'; // Réinitialiser à la flèche droite
+                }
+            });
+        }
+
+        // Handler pour toggleCollapse qui sera attaché via addEventListener
+        function toggleCollapseHandler(event) {
+            toggleCollapse(event.currentTarget);
+        }
+
+        // Fonction de filtrage des attractions détaillées
+        function filterDetailedAttractions() {
+            const searchTerm = document.getElementById('attractionSearchDetailed').value.toLowerCase();
+            const allAttractionCards = document.querySelectorAll('.attraction-detail-card');
+            const noAttractionsFound = document.getElementById('noAttractionsFound');
+            let foundAttractions = 0;
+
+            // Réinitialiser l'affichage de toutes les cartes
+            allAttractionCards.forEach(card => {
+                card.style.display = 'none';
+            });
+
+            // Gérer le cas où la barre de recherche est vide
+            if (searchTerm === '') {
+                allAttractionCards.forEach(card => {
+                    card.style.display = 'flex'; // Afficher toutes les cartes
+                });
+                // Replier toutes les sections à leur état initial
+                initializeCollapsibleSections();
+                noAttractionsFound.style.display = 'none';
+                return;
+            }
+
+            // Parcourir toutes les cartes d'attraction pour trouver les correspondances
+            allAttractionCards.forEach(card => {
+                const attractionName = card.dataset.attractionName.toLowerCase();
+                if (attractionName.includes(searchTerm)) {
+                    card.style.display = 'flex'; // Afficher la carte
+                    foundAttractions++;
+
+                    // Déplie la zone parente
+                    let zoneContent = card.closest('.collapsible-content');
+                    if (zoneContent) {
+                        zoneContent.classList.add('expanded');
+                        let zoneHeader = zoneContent.previousElementSibling; // L'en-tête avant le contenu
+                        if (zoneHeader) {
+                            let zoneIcon = zoneHeader.querySelector('.collapse-icon');
+                            if (zoneIcon) zoneIcon.innerHTML = '&#9660;'; // Flèche vers le bas
+                        }
+                    }
+
+                    // Déplier le parc parent
+                    let parkContent = zoneContent ? zoneContent.closest('.park-group').querySelector('.collapsible-content') : null; // C'est le contenu du parc
+                    if (parkContent) {
+                        parkContent.classList.add('expanded');
+                        let parkHeader = parkContent.previousElementSibling; // L'en-tête avant le contenu
+                        if (parkHeader) {
+                            let parkIcon = parkHeader.querySelector('.collapse-icon');
+                            if (parkIcon) parkIcon.innerHTML = '&#9660;'; // Flèche vers le bas
+                        }
+                    }
+                }
+            });
+
+            // Gérer l'affichage du message "Aucune attraction trouvée"
+            if (foundAttractions === 0) {
+                noAttractionsFound.style.display = 'block';
+            } else {
+                noAttractionsFound.style.display = 'none';
+            }
+        }
+
+
+        // Lancer le chargement du rapport au chargement de la page
+        document.addEventListener('DOMContentLoaded', fetchAndRenderReport);
+    </script>
+</body>
+</html>
