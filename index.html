@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Notes des Attractions Europa-Park & Rulantica</title>
-    <!-- Favicon SVG intégré en base64 -->
+    <!-- Favicon -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎢</text></svg>">
         <script type="module">
         // Importation des modules Firebase nécessaires
@@ -57,7 +57,7 @@
         // --- Récupération des éléments du DOM ---
         const mainListPage = document.getElementById('main-list-page');
         const attractionDetailPage = document.getElementById('attraction-detail-page');
-        const statsPage = document.getElementById('stats-page');
+        // const statsPage = document.getElementById('stats-page'); // Cette page est supprimée
         const manageAttractionsPage = document.getElementById('manage-attractions-page');
         const attractionListDiv = document.getElementById('attractionList');
         const detailAttractionName = document.getElementById('detail-attraction-name');
@@ -71,12 +71,12 @@
         const familyRatingsList = document.getElementById('familyRatingsList');
         const averageRatingSpan = document.getElementById('averageRating');
 
-        // Stats elements
-        const personSelectForStats = document.getElementById('personSelectForStats');
-        const individualRatingsList = document.getElementById('individualRatingsList');
-        const averageByPersonList = document.getElementById('averageByPersonList');
-        const averageByZoneList = document.getElementById('averageByZoneList');
-        const averageByCategoryList = document.getElementById('averageByCategoryList');
+        // Stats elements (ces éléments ne sont plus nécessaires car la page stats est supprimée)
+        // const personSelectForStats = document.getElementById('personSelectForStats');
+        // const individualRatingsList = document.getElementById('individualRatingsList');
+        // const averageByPersonList = document.getElementById('averageByPersonList');
+        // const averageByZoneList = document.getElementById('averageByZoneList');
+        // const averageByCategoryList = document.getElementById('averageByCategoryList');
 
         // Filter elements
         const zoneFilterSelect = document.getElementById('zoneFilter');
@@ -150,7 +150,7 @@
         function hideAllPages() {
             mainListPage.style.display = 'none';
             attractionDetailPage.style.display = 'none';
-            statsPage.style.display = 'none';
+            // statsPage.style.display = 'none'; // Cette page est supprimée
             manageAttractionsPage.style.display = 'none';
             testNotesOptionsModal.classList.remove('visible'); // S'assurer que la modale d'options est cachée
         }
@@ -201,14 +201,15 @@
             attractionDetailPage.style.display = 'block';
         }
 
-        function showStatsPage() {
-            hideAllPages();
-            statsPage.style.display = 'block';
-            renderIndividualRatingsForPerson();
-            renderAverageByPerson();
-            renderAverageByZone();
-            renderAverageByCategory();
-        }
+        // showStatsPage est supprimée car le bouton redirige vers un autre fichier
+        // function showStatsPage() {
+        //     hideAllPages();
+        //     statsPage.style.display = 'block';
+        //     renderIndividualRatingsForPerson();
+        //     renderAverageByPerson();
+        //     renderAverageByZone();
+        //     renderAverageByCategory();
+        // }
 
         function requestManageAttractionsAccess() {
             currentPasswordAction = 'manageAttractions';
@@ -707,231 +708,11 @@
             });
         }
 
-        function renderIndividualRatingsForPerson() {
-            individualRatingsList.innerHTML = '';
-            const selectedPersonName = personSelectForStats.value;
-            if (!selectedPersonName) {
-                individualRatingsList.innerHTML = '<li>Sélectionnez une personne pour voir ses notes.</li>';
-                return;
-            }
-            let ratingsData = [];
-            attractions.forEach(attraction => {
-                const rating = allRatings[attraction.id] && allRatings[attraction.id][selectedPersonName] !== undefined
-                               ? allRatings[attraction.id][selectedPersonName]
-                               : 'N/A';
-                // Ajout de l'indicateur de parc à l'attraction
-                let parkEmoji = '';
-                if (attraction.park === 'Europa-Park') {
-                    parkEmoji = '🔵 ';
-                } else if (attraction.park === 'Rulantica') {
-                    parkEmoji = '💧 ';
-                }
-                ratingsData.push({ attractionName: `${parkEmoji}${attraction.name}`, rating: rating });
-            });
-            ratingsData.sort((a, b) => {
-                const ratingA = a.rating === 'N/A' ? -1 : a.rating;
-                const ratingB = b.rating === 'N/A' ? -1 : b.rating;
-                return ratingB - ratingA; // Trie du plus grand au plus petit
-            });
-            let hasRatings = false;
-            ratingsData.forEach(item => {
-                const li = document.createElement('li');
-                li.textContent = `${item.attractionName} : `;
-                const scoreSpan = document.createElement('span');
-                scoreSpan.textContent = item.rating;
-                scoreSpan.className = `score-${selectedPersonName.toLowerCase()}`;
-                li.appendChild(scoreSpan);
-                individualRatingsList.appendChild(li);
-                if (item.rating !== 'N/A') {
-                    hasRatings = true;
-                }
-            });
-            if (!hasRatings && selectedPersonName !== "") {
-                individualRatingsList.innerHTML = `<li>${selectedPersonName} n'a pas encore noté d'attractions.</li>`;
-            }
-        }
-
-        function renderAverageByPerson() {
-            averageByPersonList.innerHTML = '';
-            const personScores = {};
-            const totalAttractions = attractions.length; // Nombre total d'attractions
-            familyMembers.forEach(member => {
-                personScores[member.name] = { total: 0, count: 0 };
-            });
-            for (const attractionId in allRatings) {
-                const attractionRatings = allRatings[attractionId];
-                for (const memberName in attractionRatings) {
-                    if (personScores[memberName]) {
-                        personScores[memberName].total += attractionRatings[memberName];
-                        personScores[memberName].count++;
-                    }
-                }
-            }
-            const averagePersonData = [];
-            familyMembers.forEach(member => {
-                const data = personScores[member.name];
-                const average = data.count > 0 ? parseFloat((data.total / data.count).toFixed(1)) : 'N/A';
-                // Ajout du nombre de notes attribuées et du total possible
-                const notesInfo = data.count > 0 ? ` (${data.count}/${totalAttractions} notes)` : '';
-
-                averagePersonData.push({ name: member.name, average: average, notesInfo: notesInfo, colorClass: `score-${member.name.toLowerCase()}` });
-            });
-            averagePersonData.sort((a, b) => {
-                const avgA = a.average === 'N/A' ? -1 : a.average;
-                const avgB = b.average === 'N/A' ? -1 : b.average;
-                return avgB - avgA;
-            });
-            if (averagePersonData.every(data => data.average === 'N/A')) {
-                averageByPersonList.innerHTML = '<li>Aucune note enregistrée pour calculer les moyennes par personne.</li>';
-                return;
-            }
-            averagePersonData.forEach(item => {
-                const li = document.createElement('li');
-                li.textContent = `${item.name} : `;
-                const scoreSpan = document.createElement('span');
-                scoreSpan.textContent = item.average !== 'N/A' ? `${item.average}/10` : 'N/A';
-                scoreSpan.className = item.colorClass;
-                li.appendChild(scoreSpan);
-                
-                const notesInfoSpan = document.createElement('span');
-                notesInfoSpan.textContent = item.notesInfo;
-                notesInfoSpan.style.fontSize = '0.8em'; // Rendre plus discret
-                notesInfoSpan.style.color = '#666'; // Couleur plus discrète
-                notesInfoSpan.style.marginLeft = '5px';
-                li.appendChild(notesInfoSpan);
-
-                averageByPersonList.appendChild(li);
-            });
-        }
-
-        function renderAverageByZone() {
-            averageByZoneList.innerHTML = '';
-            const zoneScores = {};
-            const zoneParkMap = new Map(); // Pour stocker le parc associé à chaque zone
-            const zoneAttractionCount = {}; // Pour stocker le nombre d'attractions par zone
-
-            attractions.forEach(attraction => {
-                const zone = attraction.zone;
-                const park = attraction.park;
-                if (!zoneScores[zone]) {
-                    zoneScores[zone] = { total: 0, count: 0 };
-                    zoneAttractionCount[zone] = 0;
-                }
-                // Stocke le parc pour cette zone (en supposant qu'une zone appartient à un seul parc)
-                if (!zoneParkMap.has(zone)) {
-                    zoneParkMap.set(zone, park);
-                }
-                zoneAttractionCount[zone]++; // Incrémente le compteur d'attractions pour cette zone
-
-                const attractionRatings = allRatings[attraction.id] || {};
-                for (const memberName in attractionRatings) {
-                    zoneScores[zone].total += attractionRatings[memberName];
-                    zoneScores[zone].count++;
-                }
-            });
-            let averagesData = [];
-            for (const zone in zoneScores) {
-                const data = zoneScores[zone];
-                const average = data.count > 0 ? parseFloat((data.total / data.count).toFixed(1)) : 'N/A';
-                const park = zoneParkMap.get(zone); // Récupère le parc pour la zone
-                let emoji = '';
-                if (park === 'Europa-Park') {
-                    emoji = '🔵 ';
-                } else if (park === 'Rulantica') {
-                    emoji = '💧 ';
-                }
-                
-                // Calcul du nombre total de notes possibles pour la zone
-                const totalPossibleNotes = zoneAttractionCount[zone] * familyMembers.length;
-                const notesInfo = data.count > 0 ? ` (${data.count}/${totalPossibleNotes} notes)` : '';
-
-                averagesData.push({ name: `${emoji}${zone}`, average: average, notesInfo: notesInfo });
-            }
-            averagesData.sort((a, b) => {
-                const avgA = a.average === 'N/A' ? -1 : a.average;
-                const avgB = b.average === 'N/A' ? -1 : b.average;
-                return avgB - avgA;
-            });
-            if (averagesData.every(data => data.average === 'N/A')) {
-                averageByZoneList.innerHTML = '<li>Aucune note enregistrée pour calculer les moyennes par zone.</li>';
-                return;
-            }
-            averagesData.forEach(item => {
-                const li = document.createElement('li');
-                li.textContent = `${item.name} : `;
-                const scoreSpan = document.createElement('span');
-                scoreSpan.textContent = item.average !== 'N/A' ? `${item.average}/10` : 'N/A';
-                scoreSpan.style.color = item.average !== 'N/A' ? '#008080' : '#888';
-                li.appendChild(scoreSpan);
-
-                const notesInfoSpan = document.createElement('span');
-                notesInfoSpan.textContent = item.notesInfo;
-                notesInfoSpan.style.fontSize = '0.8em'; // Rendre plus discret
-                notesInfoSpan.style.color = '#666'; // Couleur plus discrète
-                notesInfoSpan.style.marginLeft = '5px';
-                li.appendChild(notesInfoSpan);
-
-                averageByZoneList.appendChild(li);
-            });
-        }
-
-        function renderAverageByCategory() {
-            averageByCategoryList.innerHTML = '';
-            const categoryScores = {};
-            const categoryAttractionCount = {}; // Pour stocker le nombre d'attractions par catégorie
-
-            attractions.forEach(attraction => {
-                const category = attraction.category;
-                if (!categoryScores[category]) {
-                    categoryScores[category] = { total: 0, count: 0 };
-                    categoryAttractionCount[category] = 0;
-                }
-                categoryAttractionCount[category]++; // Incrémente le compteur d'attractions pour cette catégorie
-
-                const attractionRatings = allRatings[attraction.id] || {};
-                for (const memberName in attractionRatings) {
-                    categoryScores[category].total += attractionRatings[memberName];
-                    categoryScores[category].count++;
-                }
-            });
-            let averagesData = [];
-            for (const category in categoryScores) {
-                const data = categoryScores[category];
-                const average = data.count > 0 ? parseFloat((data.total / data.count).toFixed(1)) : 'N/A';
-                
-                // Calcul du nombre total de notes possibles pour la catégorie
-                const totalPossibleNotes = categoryAttractionCount[category] * familyMembers.length;
-                const notesInfo = data.count > 0 ? ` (${data.count}/${totalPossibleNotes} notes)` : '';
-
-                averagesData.push({ name: category, average: average, notesInfo: notesInfo });
-            }
-            averagesData.sort((a, b) => {
-                const avgA = a.average === 'N/A' ? -1 : a.average;
-                const avgB = b.average === 'N/A' ? -1 : b.average;
-                return avgB - avgA;
-            });
-            if (averagesData.every(data => data.average === 'N/A')) {
-                averageByCategoryList.innerHTML = '<li>Aucune note enregistrée pour calculer les moyennes par catégorie.</li>';
-                return;
-            }
-            averagesData.forEach(item => {
-                const li = document.createElement('li');
-                li.textContent = `${item.name} : `;
-                const scoreSpan = document.createElement('span');
-                scoreSpan.textContent = item.average !== 'N/A' ? `${item.average}/10` : 'N/A';
-                scoreSpan.style.color = item.average !== 'N/A' ? '#008080' : '#888';
-                li.appendChild(scoreSpan);
-
-                const notesInfoSpan = document.createElement('span');
-                notesInfoSpan.textContent = item.notesInfo;
-                notesInfoSpan.style.fontSize = '0.8em'; // Rendre plus discret
-                notesInfoSpan.style.color = '#666'; // Couleur plus discrète
-                notesInfoSpan.style.marginLeft = '5px';
-                li.appendChild(notesInfoSpan);
-
-                averageByCategoryList.appendChild(li);
-            });
-        }
+        // Fonctions de rendu des statistiques (maintenant obsolètes car la page stats est supprimée)
+        // function renderIndividualRatingsForPerson() { ... }
+        // function renderAverageByPerson() { ... }
+        // function renderAverageByZone() { ... }
+        // function renderAverageByCategory() { ... }
 
         function triggerConfetti() {
             const confettiContainer = document.getElementById('confetti-container');
@@ -1056,12 +837,13 @@
                         showMainListPage();
                     }
                 }
-                if (statsPage.style.display === 'block') {
-                    renderIndividualRatingsForPerson();
-                    renderAverageByPerson();
-                    renderAverageByZone();
-                    renderAverageByCategory();
-                }
+                // Suppression des appels aux fonctions de statistiques car la page stats est supprimée
+                // if (statsPage.style.display === 'block') {
+                //     renderIndividualRatingsForPerson();
+                //     renderAverageByPerson();
+                //     renderAverageByZone();
+                //     renderAverageByCategory();
+                // }
                 attractionsLoaded = true; // Marque les attractions comme chargées
                 checkAndHideLoading(); // Vérifie si tout est chargé
             }, (error) => {
@@ -1090,12 +872,13 @@
                 if (attractionDetailPage.style.display === 'block') {
                     updateRatingsDisplay(); // Pour mettre à jour les notes sur la page de détail
                 }
-                if (statsPage.style.display === 'block') {
-                    renderIndividualRatingsForPerson();
-                    renderAverageByPerson();
-                    renderAverageByZone();
-                    renderAverageByCategory();
-                }
+                // Suppression des appels aux fonctions de statistiques car la page stats est supprimée
+                // if (statsPage.style.display === 'block') {
+                //     renderIndividualRatingsForPerson();
+                //     renderAverageByPerson();
+                //     renderAverageByZone();
+                //     renderAverageByCategory();
+                // }
                 ratingsLoaded = true; // Marque les notes comme chargées
                 checkAndHideLoading(); // Vérifie si tout est chargé
             }, (error) => {
@@ -1223,7 +1006,8 @@
                 renderAttractionList();
             });
 
-            personSelectForStats.addEventListener('change', renderIndividualRatingsForPerson);
+            // Suppression de l'écouteur pour personSelectForStats car la page stats est supprimée
+            // personSelectForStats.addEventListener('change', renderIndividualRatingsForPerson);
 
             // Gestionnaire pour le bouton OK de la modale de mot de passe
             passwordOkButton.addEventListener('click', () => {
@@ -1271,7 +1055,7 @@
         });
 
         window.showDetailPage = showDetailPage;
-        window.showStatsPage = showStatsPage;
+        // window.showStatsPage = showStatsPage; // Cette fonction est supprimée
         window.requestManageAttractionsAccess = requestManageAttractionsAccess;
         window.requestTestNotesManagementAccess = requestTestNotesManagementAccess;
         window.showMainListPage = showMainListPage;
@@ -1342,6 +1126,7 @@
             gap: 10px;
             margin-bottom: 20px;
         }
+        .action-buttons-top .stats-button-link, /* Nouveau style pour le lien transformé en bouton */
         .action-buttons-top button {
             background-color: #4682B4;
             color: white;
@@ -1355,7 +1140,12 @@
             flex-grow: 1;
             max-width: 180px;
             box-sizing: border-box;
+            text-decoration: none; /* Pour le lien */
+            display: flex; /* Pour centrer le texte dans le lien */
+            justify-content: center;
+            align-items: center;
         }
+        .action-buttons-top .stats-button-link:hover, /* Nouveau style pour le lien transformé en bouton */
         .action-buttons-top button:hover {
             background-color: #36648B;
             transform: scale(1.02);
@@ -1751,7 +1541,8 @@
         }
         /* Le bouton de partage a été supprimé */
 
-        /* Page des statistiques */
+        /* Page des statistiques (maintenant supprimée) */
+        /*
         .stats-page {
             display: none;
             text-align: center;
@@ -1796,13 +1587,14 @@
         .stats-page .stats-list li .score-papa { color: #4169E1; }
         .stats-page .stats-list li .score-maman { color: #FF8C00; }
         .stats-page .stats-list li .score-ceylian { color: #DC143C; }
-        .stats-page .stats-list li .score-cloelie { color: #000000; } /* Assure la couleur du texte de la note aussi */
+        .stats-page .stats-list li .score-cloelie { color: #000000; }
         .stats-page .average-display {
             font-size: 1.1em;
             color: #8B0000;
             margin-top: 10px;
             font-weight: bold;
         }
+        */
 
         /* Page de gestion des attractions */
         .manage-attractions-page {
@@ -2215,6 +2007,7 @@
                 flex-direction: row;
                 justify-content: center;
             }
+            .action-buttons-top .stats-button-link, /* Nouveau style pour le lien transformé en bouton */
             .action-buttons-top button {
                 width: auto;
                 max-width: none;
@@ -2305,7 +2098,8 @@
                 <h1>🎉 Notes des Attractions 🎉</h1>
                 <!-- Boutons d'action déplacés en haut -->
                 <div class="action-buttons-top">
-                    <button class="stats-button" onclick="showStatsPage()">Voir les Statistiques</button>
+                    <!-- Bouton "Voir les Statistiques" modifié pour ouvrir le rapport externe -->
+                    <a href="synthèse notes EP.html" target="_blank" class="stats-button-link">Voir les Statistiques</a>
                     <button class="generate-button" onclick="requestTestNotesManagementAccess()">Gérer les notes de test</button>
                     <button class="manage-button" onclick="requestManageAttractionsAccess()">Gérer les attractions</button>
                 </div>
@@ -2355,33 +2149,8 @@
             <button class="back-button" onclick="showMainListPage()">Retour aux attractions</button>
         </div>
 
-        <div id="stats-page" class="stats-page">
-            <h1>📊 Statistiques des Notes 📊</h1>
-            <div class="stats-section">
-                <h3>Notes de chaque personne :</h3>
-                <select id="personSelectForStats">
-                    <option value="">Sélectionnez une personne</option>
-                    <option value="Papa">Papa</option>
-                    <option value="Maman">Maman</option>
-                    <option value="Ceylian">Ceylian</option>
-                    <option value="Cloélie">Cloélie</option>
-                </select>
-                <ul id="individualRatingsList" class="stats-list"></ul>
-            </div>
-            <div class="stats-section">
-                <h3>Moyenne par personne :</h3>
-                <ul id="averageByPersonList" class="stats-list"></ul>
-            </div>
-            <div class="stats-section">
-                <h3>Moyenne par zone thématique :</h3>
-                <ul id="averageByZoneList" class="stats-list"></ul>
-            </div>
-            <div class="stats-section">
-                <h3>Moyenne par catégorie :</h3>
-                <ul id="averageByCategoryList" class="stats-list"></ul>
-            </div>
-            <button class="back-button" onclick="showMainListPage()">Retour aux attractions</button>
-        </div>
+        <!-- La page des statistiques interne a été supprimée -->
+        <!-- <div id="stats-page" class="stats-page">...</div> -->
 
         <div id="manage-attractions-page" class="manage-attractions-page">
             <h1>🛠️ Gérer les Attractions 🛠️</h1>
